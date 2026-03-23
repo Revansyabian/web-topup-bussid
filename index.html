@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web top up bussid</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00bfff">
+</head>
+<body>
+    <div id="alert" class="alert"></div>
+
+    <div id="expiredBanner" class="expired-banner" style="display: none;">
+        <div class="expired-content">
+            <button class="expired-close" onclick="closeExpiredBanner()">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3><i class="fas fa-exclamation-triangle"></i> MASA AKTIF AKUN HABIS</h3>
+            <p>Maaf masa aktif akun anda telah habis. Silakan perpanjang akses Anda.</p>
+            <div class="expired-buttons">
+                <button class="btn btn-whatsapp" onclick="openWhatsApp()">
+                    <i class="fab fa-whatsapp"></i> Hubungi WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="trxLagiModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <h3 style="color: #00bfff; margin-bottom: 20px; text-align: center;">MAU LANJUT TRX?</h3>
+            <p style="text-align: center; margin-bottom: 30px; color: #666;">Silakan pilih jenis transaksi</p>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <button class="btn btn-success" onclick="pilihTopupLagi()" style="flex: 1; padding: 15px;">
+                    TOP UP
+                </button>
+                <button class="btn btn-warning" onclick="pilihKurasLagi()" style="flex: 1; padding: 15px;">
+                    KURAS
+                </button>
+            </div>
+            <button class="btn btn-secondary" onclick="tutupTrxLagiModal()" style="width: 100%; padding: 15px;">
+                KEMBALI KE HOME
+            </button>
+        </div>
+    </div>
+
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <h1><i class="fas fa-bus"></i> TOP UP BUSSID</h1>
+                    <p>Top Up BUS SIMULATOR ID</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="username"><i class="fas fa-user"></i> Username</label>
+                    <input type="text" id="username" placeholder="Masukkan username" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="password" placeholder="Masukkan password" class="form-input" maxlength="20" oninput="updatePasswordCounter('password')">
+                    <div class="password-counter">
+                        <span id="passwordCharCount">0/20</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" onclick="login()">
+                    <i class="fas fa-sign-in-alt"></i> LOGIN
+                </button>
+
+                <div class="login-footer">
+                    <p><i class="fas fa-info-circle"></i> Hubungi admin untuk membuat akun</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainApp" class="main-app" style="display: none;">
+        <div class="header">
+            <div class="logo">
+                <h1><i class="fas fa-bus"></i> TOP UP BUSSID</h1>
+                <p class="subtitle">Top Up uang bussid</p>
+            </div>
+            
+            <div class="user-info">
+                <button class="btn-icon" onclick="showHistory()">
+                    <i class="fas fa-history"></i> Riwayat
+                </button>
+                <button class="btn-icon" onclick="showSettings()">
+                    <i class="fas fa-cog"></i> Pengaturan
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- SEARCH CARD -->
+            <div class="card search-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-search"></i> CARI AKUN BUSSID</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="deviceId"><i class="fas fa-mobile-alt"></i> Device ID / X-Auth Token</label>
+                        <input type="text" id="deviceId" placeholder="Masukkan Device ID atau Token" class="form-input">
+                        <small class="form-hint">
+                            <i class="fas fa-info-circle"></i> 
+                            Masukan device id atau x auth
+                        </small>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="searchAccount()">
+                        <i class="fas fa-search"></i> CARI AKUN
+                    </button>
+                </div>
+            </div>
+
+            <!-- ACCOUNT INFO CARD -->
+            <div id="accountInfo" class="card" style="display: none;">
+                <div class="card-header">
+                    <h2><i class="fas fa-user-circle"></i> INFORMASI AKUN BUSSID</h2>
+                    <button class="btn-icon" onclick="refreshAccountInfo()" id="refreshAccountBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Profile Section dengan Foto BULAT SEMPURNA -->
+                    <div class="account-profile">
+                        <div class="profile-photo-container">
+                            <div class="profile-photo" id="profilePhoto">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        </div>
+                        <div class="profile-info">
+                            <h3 id="accountName">-</h3>
+                            <p class="account-balance" id="accountBalance">Rp 0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Facebook Information (Hanya ID dan Nama) -->
+                    <div class="facebook-info-section">
+                        <h4><i class="fab fa-facebook" style="color: #1877F2;"></i> INFORMASI AKUN FACEBOOK</h4>
+                        <div class="facebook-info-details" id="facebookDetails">
+                            <!-- Akan diisi oleh JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Informasi BUSSID (PlayFab ID Lengkap) -->
+                    <div class="bussid-info-section">
+                        <h4><i class="fas fa-bus" style="color: #00bfff;"></i> INFORMASI BUSSID</h4>
+                        <div class="bussid-info-details">
+                            <div class="info-row">
+                                <span class="info-label">PlayFab ID:</span>
+                                <span class="info-value playfab-id-full" id="playfabId">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Status:</span>
+                                <span class="info-value status-active">AKTIF</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BUTTON ACTION: TOPUP DAN KURAS -->
+                    <div class="account-actions">
+                        <button class="btn btn-success action-btn" onclick="showTopupFromAccount()">
+                            <i class="fas fa-arrow-up"></i> TOP UP
+                        </button>
+                        <button class="btn btn-warning action-btn" onclick="showKurasFromAccount()">
+                            <i class="fas fa-arrow-down"></i> KURAS
+                        </button>
+                    </div>
+                    
+                    <!-- BUTTON HOME -->
+                    <button class="btn btn-primary btn-block home-btn" onclick="showHome()">
+                        <i class="fas fa-home"></i> KEMBALI KE HOME
+                    </button>
+
+                    <!-- Ganti Nama Section -->
+                    <div class="change-name-section">
+                        <h3><i class="fas fa-user-edit"></i> Ganti Nama Akun</h3>
+                        <div class="form-group">
+                            <label><i class="fas fa-user-plus"></i> Nama Baru (Maks 25 karakter)</label>
+                            <div class="input-with-button">
+                                <input type="text" id="newAccountName" 
+                                       placeholder="Masukkan nama baru untuk akun BUSSID" 
+                                       class="form-input"
+                                       maxlength="25">
+                                <button class="btn btn-primary" onclick="checkNameAvailability()">
+                                    <i class="fas fa-search"></i> Cek
+                                </button>
+                            </div>
+                            <div class="name-availability" id="nameAvailability" style="display: none;">
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-success btn-block" onclick="changeAccountNameSimple()">
+                            <i class="fas fa-check"></i> GANTI NAMA AKUN
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOPUP SECTION -->
+            <div id="topupSection" class="card" style="display: none;">
+                <div class="card-header">
+                    <h2><i class="fas fa-money-bill-wave"></i> TOP UP SALDO BUSSID</h2>
+                </div>
+                <div class="card-body">
+                    <div class="current-account-info">
+                        <p><i class="fas fa-user"></i> <strong>Akun:</strong> <span id="topupAccountName">-</span></p>
+                        <p><i class="fas fa-coins"></i> <strong>Saldo Saat Ini:</strong> <span id="topupCurrentBalance">Rp 0</span></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="topupAmount">
+                            <i class="fas fa-coins"></i> Jumlah Top Up 
+                            <span class="max-badge">MAX: 2.147M</span>
+                        </label>
+                        <input type="text" id="topupAmount" 
+                               placeholder="Contoh: 2M, 1M, 500JT, MAX" 
+                               class="form-input"
+                               oninput="validateTopupAmount()">
+                        <div id="amountPreview" class="amount-preview" style="display: none;">
+                            <div class="label">Jumlah Top Up</div>
+                            <div class="value" id="amountPreviewValue">Rp 0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-amounts"></div>
+                    
+                    <button class="btn btn-success btn-block" onclick="processTopup()">
+                        <i class="fas fa-check-circle"></i> PROSES TOP UP
+                    </button>
+                    
+                    <button class="btn btn-primary btn-block home-btn" onclick="showHome()">
+                        <i class="fas fa-home"></i> KEMBALI KE HOME
+                    </button>
+                </div>
+            </div>
+
+            <!-- KURAS SECTION -->
+            <div id="kurasSection" class="card" style="display: none;">
+                <div class="card-header">
+                    <h2><i class="fas fa-exchange-alt"></i> KURAS SALDO BUSSID</h2>
+                </div>
+                <div class="card-body">
+                    <div class="current-account-info">
+                        <p><i class="fas fa-user"></i> <strong>Akun:</strong> <span id="kurasAccountName">-</span></p>
+                        <p><i class="fas fa-coins"></i> <strong>Saldo Saat Ini:</strong> <span id="kurasCurrentBalance">Rp 0</span></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="kurasAmount"><i class="fas fa-coins"></i> Jumlah Kuras</label>
+                        <input type="text" id="kurasAmount" placeholder="Kosongkan untuk kuras semua" class="form-input">
+                        <small class="form-hint">Biarkan kosong untuk menguras semua saldo</small>
+                    </div>
+                    
+                    <button class="btn btn-warning btn-block" onclick="processKuras()">
+                        <i class="fas fa-bolt"></i> PROSES KURAS
+                    </button>
+                    
+                    <button class="btn btn-primary btn-block home-btn" onclick="showHome()">
+                        <i class="fas fa-home"></i> KEMBALI KE HOME
+                    </button>
+                </div>
+            </div>
+
+            <!-- HISTORY SECTION -->
+            <div id="historySection" class="card" style="display: none;">
+                <div class="card-header">
+                    <h2><i class="fas fa-history"></i> RIWAYAT TRANSAKSI</h2>
+                    <div class="history-header-actions">
+                        <button class="btn-icon" onclick="showHome()">
+                            <i class="fas fa-home"></i> Home
+                        </button>
+                        <button class="btn-icon btn-danger" onclick="showDeleteHistoryConfirm()">
+                            <i class="fas fa-trash"></i> Hapus Semua
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="history-info">
+                        <p><i class="fas fa-info-circle"></i> Riwayat otomatis terhapus setelah 3 hari</p>
+                    </div>
+                    <div id="transactionsList"></div>
+                </div>
+            </div>
+
+            <!-- SETTINGS SECTION -->
+            <div id="settingsSection" class="card" style="display: none;">
+                <div class="card-header">
+                    <h2><i class="fas fa-cog"></i> PENGATURAN AKUN</h2>
+                    <button class="btn-icon" onclick="showHome()">
+                        <i class="fas fa-home"></i> Home
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="user-profile-info">
+                        <div class="profile-item">
+                            <span class="profile-label"><i class="fas fa-user"></i> Username:</span>
+                            <span class="profile-value highlight-black" id="profileUsername">-</span>
+                        </div>   
+                        <div class="profile-item">
+                            <span class="profile-label"><i class="fas fa-user"></i> Nama:</span>
+                            <span class="profile-value highlight-black" id="profileName">-</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label"><i class="fas fa-user-tag"></i> Role:</span>
+                            <span class="profile-value role-biru" id="profileRole">-</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label"><i class="fas fa-calendar-alt"></i> Masa Aktif:</span>
+                            <span class="profile-value" id="profileExpiry">-</span>
+                        </div>
+                        <div class="profile-item">
+                            <span class="profile-label"><i class="fas fa-sign-in-alt"></i> Login Terakhir:</span>
+                            <span class="profile-value" id="profileLastLogin">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-divider">
+                        <h3><i class="fas fa-key"></i> Ubah Password Akun</h3>
+                    </div>
+                    
+                    <div class="change-password">
+                        <div class="form-group">
+                            <label><i class="fas fa-lock"></i> Password Lama</label>
+                            <input type="password" id="oldPassword" 
+                                   placeholder="Masukkan password lama" 
+                                   class="form-input"
+                                   maxlength="20"
+                                   oninput="updatePasswordCounter('oldPassword')">
+                            <div class="password-counter">
+                                <span id="oldPasswordCharCount">0/20</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-key"></i> Password Baru</label>
+                            <input type="password" id="newPassword" 
+                                   placeholder="Masukkan password baru (maks 20 karakter)" 
+                                   class="form-input"
+                                   maxlength="20"
+                                   oninput="updatePasswordCounter('newPassword')">
+                            <div class="password-counter">
+                                <span id="newPasswordCharCount">0/20</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-key"></i> Konfirmasi Password Baru</label>
+                            <input type="password" id="confirmPassword" 
+                                   placeholder="Ulangi password baru" 
+                                   class="form-input"
+                                   maxlength="20"
+                                   oninput="updatePasswordCounter('confirmPassword')">
+                            <div class="password-counter">
+                                <span id="confirmPasswordCharCount">0/20</span>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-block" onclick="changePassword()">
+                            <i class="fas fa-save"></i> SIMPAN PASSWORD
+                        </button>
+                    </div>
+                    
+                    <button class="btn btn-danger btn-block" onclick="logout()" style="margin-top: 30px;">
+                        <i class="fas fa-sign-out-alt"></i> LOGOUT
+                    </button>
+                </div>
+            </div>
+
+            <!-- RECEIPT SECTION -->
+            <div id="receiptSection" class="card" style="display: none;">
+                <div class="card-header">
+                    <h2><i class="fas fa-receipt"></i> STRUK TRANSAKSI</h2>
+                </div>
+                <div class="card-body">
+                    <div id="receiptContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h3 id="confirmTitle"></h3>
+            <p id="confirmMessage"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="cancelConfirm()">
+                    <i class="fas fa-times"></i> BATAL
+                </button>
+                <button class="btn btn-danger" onclick="confirmAction()">
+                    <i class="fas fa-check"></i> LANJUTKAN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteHistoryModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-trash"></i> HAPUS SEMUA RIWAYAT</h3>
+            <p>Apakah Anda yakin ingin menghapus <strong>SEMUA</strong> riwayat transaksi?</p>
+            <p class="warning-text"><i class="fas fa-exclamation-triangle"></i> Tindakan ini tidak dapat dibatalkan!</p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeDeleteHistoryModal()">
+                    <i class="fas fa-times"></i> BATAL
+                </button>
+                <button class="btn btn-danger" onclick="deleteAllHistory()">
+                    <i class="fas fa-trash"></i> HAPUS SEMUA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="nameChangeModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-user-edit"></i> Ganti Nama Akun</h3>
+            <p id="nameChangeMessage"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="closeNameChangeModal()">
+                    <i class="fas fa-check"></i> OKE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="g2.js"></script>
+</body>
+</html>
