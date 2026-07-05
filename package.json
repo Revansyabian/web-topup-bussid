@@ -1,8 +1,5 @@
 {
   "name": "topup-bussid",
   "version": "1.0.0",
-  "dependencies": {
-    "crypto-js": "^4.2.0",
-    "firebase-admin": "^12.0.0"
   }
 }
