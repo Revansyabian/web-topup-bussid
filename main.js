@@ -137,21 +137,8 @@ function hideAllSections() {
     var searchCard = document.querySelector('.search-card'); if (searchCard) searchCard.style.display = 'none';
 }
 
-function showHome() {
-    hideAllSections();
-    var sc = document.querySelector('.search-card');
-    if (sc) sc.style.display = 'block';
-}
-
-function backToAccount() {
-    if (currentAccount) {
-        hideAllSections();
-        var ai = document.getElementById('accountInfo');
-        if (ai) ai.style.display = 'block';
-    } else {
-        showHome();
-    }
-}
+function showHome() { hideAllSections(); var sc = document.querySelector('.search-card'); if (sc) sc.style.display = 'block'; }
+function backToAccount() { if (currentAccount) { hideAllSections(); var ai = document.getElementById('accountInfo'); if (ai) ai.style.display = 'block'; } else { showHome(); } }
 
 function parseDate(dateStr) {
     if (!dateStr) return null;
@@ -201,18 +188,8 @@ function checkAccountExpiry(user) {
     return { expired: expired, daysLeft: daysLeft, daysLeftText: getDaysLeftText(daysLeft), daysLeftClass: getDaysLeftClass(daysLeft) };
 }
 
-function showExpiredBanner() {
-    var eb = document.getElementById('expiredBanner');
-    var ma = document.getElementById('mainApp');
-    if (eb) eb.style.display = 'flex';
-    if (ma) ma.setAttribute('style', 'display:none!important;');
-}
-
-function closeExpiredBanner() {
-    var eb = document.getElementById('expiredBanner');
-    if (eb) eb.style.display = 'none';
-    logout();
-}
+function showExpiredBanner() { var eb = document.getElementById('expiredBanner'); if (eb) eb.style.display = 'flex'; var ma = document.getElementById('mainApp'); if (ma) ma.setAttribute('style', 'display:none!important;'); }
+function closeExpiredBanner() { var eb = document.getElementById('expiredBanner'); if (eb) eb.style.display = 'none'; logout(); }
 
 function openWhatsApp() { 
     var msg = encodeURIComponent("Assalamualaikum admin, saya ingin memperpanjang masa aktif akun BUSSID Top Up saya. Username: " + (currentUser ? currentUser.username : '')); 
@@ -224,11 +201,7 @@ function openWhatsAppPassword() {
     window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + msg, '_blank'); 
 }
 
-function updatePasswordCounter(fieldId) {
-    var input = document.getElementById(fieldId);
-    var counter = document.getElementById(fieldId + 'CharCount');
-    if (input && counter) counter.textContent = input.value.length + '/' + MAX_PASSWORD_LENGTH;
-}
+function updatePasswordCounter(fieldId) { var input = document.getElementById(fieldId), counter = document.getElementById(fieldId + 'CharCount'); if (input && counter) counter.textContent = input.value.length + '/' + MAX_PASSWORD_LENGTH; }
 
 function showDeleteHistoryConfirm() {
     var overlay = document.getElementById('confirmOverlay');
@@ -240,18 +213,14 @@ function showDeleteHistoryConfirm() {
         if (title) title.innerHTML = '<i class="fas fa-trash"></i> HAPUS SEMUA RIWAYAT';
         msg.textContent = 'Yakin hapus semua riwayat?';
         overlay.style.display = 'flex';
-        yesBtn.textContent = 'HAPUS SEMUA';
-        yesBtn.className = 'confirm-btn confirm-yes';
+        yesBtn.textContent = 'HAPUS SEMUA'; yesBtn.className = 'confirm-btn confirm-yes';
         yesBtn.onclick = function() { overlay.style.display = 'none'; deleteAllHistory(); };
         noBtn.onclick = function() { overlay.style.display = 'none'; };
         overlay.onclick = function(e) { if (e.target === overlay) overlay.style.display = 'none'; };
     }
 }
 
-function closeDeleteHistoryModal() {
-    var overlay = document.getElementById('confirmOverlay');
-    if (overlay) overlay.style.display = 'none';
-}
+function closeDeleteHistoryModal() { var overlay = document.getElementById('confirmOverlay'); if (overlay) overlay.style.display = 'none'; }
 
 async function deleteAllHistory() {
     showLoading('Menghapus...');
@@ -259,14 +228,8 @@ async function deleteAllHistory() {
         var transactions = await callRevanstore('transactions', 'GET');
         if (!transactions || typeof transactions !== 'object') { hideLoading(); showAlert('Tidak ada riwayat!', 'warning'); return; }
         var count = 0;
-        for (var key in transactions) {
-            if (transactions[key] && transactions[key].operator === currentUser.username) {
-                await callRevanstore('transactions/' + key, 'DELETE');
-                count++;
-            }
-        }
-        hideLoading();
-        showAlert(count + ' riwayat dihapus!', 'success');
+        for (var key in transactions) { if (transactions[key] && transactions[key].operator === currentUser.username) { await callRevanstore('transactions/' + key, 'DELETE'); count++; } }
+        hideLoading(); showAlert(count + ' riwayat dihapus!', 'success');
         if (document.getElementById('historySection').style.display === 'block') { showHistory(); }
     } catch (error) { hideLoading(); showAlert('Gagal!', 'error'); }
 }
@@ -274,103 +237,46 @@ async function deleteAllHistory() {
 async function login() {
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return; }
-    
     var username = sanitize(document.getElementById('username').value.trim());
     var password = document.getElementById('password').value.trim();
-    
     if (!username || !password) { showAlert('Harap isi username dan password!', 'warning'); return; }
-    
     var blockData = getBlockData(username);
-    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) {
-        showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error');
-        return;
-    }
-    
+    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) { showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); return; }
     showLoading('Login...');
-    
     try {
         var result = await callRevanstore('login', 'POST', { username: username, password: password });
-        
-        if (result && result.blocked) {
-            isBlocked = true;
-            localStorage.setItem('bussid_blocked', 'true');
-            hideLoading();
-            showBlockedScreen();
-            return;
-        }
-        
+        if (result && result.blocked) { isBlocked = true; localStorage.setItem('bussid_blocked', 'true'); hideLoading(); showBlockedScreen(); return; }
         if (result && result.success) {
             localStorage.removeItem(getBlockKey(username));
             await callRevanstore('login_success', 'POST', {});
-            
             var user = result.data;
             if (!user) { hideLoading(); showAlert('Error: Data user kosong', 'error'); return; }
-            
             var expiryCheck = checkAccountExpiry(user);
             if (expiryCheck.expired) { hideLoading(); showExpiredBanner(); return; }
-            
-            currentUser = {
-                id: user.id,
-                username: user.username,
-                password: password,
-                role: user.role || 'Operator',
-                full_name: user.full_name || user.username,
-                expiry_date: user.expiry_date || ''
-            };
-            
+            currentUser = { id: user.id, username: user.username, password: password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' };
             var ls = document.getElementById('loginScreen');
             var ma = document.getElementById('mainApp');
-            
             if (ls) ls.setAttribute('style', 'display:none!important;');
             if (ma) ma.setAttribute('style', 'display:block!important;');
-            
-            hideLoading();
-            showHome();
-            showAlert('Login berhasil!', 'success');
-            updateProfileInfo();
-            
-            localStorage.setItem('bussid_session', JSON.stringify({
-                username: username,
-                password: password,
-                user_id: user.id,
-                timestamp: Date.now()
-            }));
+            hideLoading(); showHome(); showAlert('Login berhasil!', 'success'); updateProfileInfo();
+            localStorage.setItem('bussid_session', JSON.stringify({ username: username, password: password, user_id: user.id, timestamp: Date.now() }));
         } else {
             await callRevanstore('login_failed', 'POST', {});
-            blockData.attempts += 1;
-            var a = blockData.attempts;
-            var d = getBlockDuration(a);
+            blockData.attempts += 1; var a = blockData.attempts; var d = getBlockDuration(a);
             hideLoading();
-            
-            if (d > 0) {
-                blockData.blockedUntil = Date.now() + d * 60 * 1000;
-                saveBlockData(username, blockData);
-                showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error');
-            } else {
-                saveBlockData(username, blockData);
-                showAlert('Username atau password salah!', 'error');
-            }
+            if (d > 0) { blockData.blockedUntil = Date.now() + d * 60 * 1000; saveBlockData(username, blockData); showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); }
+            else { saveBlockData(username, blockData); showAlert('Username atau password salah!', 'error'); }
         }
-    } catch (error) {
-        hideLoading();
-        showAlert('Gagal menghubungi server!', 'error');
-    }
+    } catch (error) { hideLoading(); showAlert('Gagal menghubungi server!', 'error'); }
 }
 
 function updateProfileInfo() {
     if (!currentUser) return;
     var expiryCheck = checkAccountExpiry(currentUser);
-    
-    var pu = document.getElementById('profileUsername');
-    if (pu) pu.textContent = currentUser.username;
-    
-    var pn = document.getElementById('profileName');
-    if (pn) pn.textContent = currentUser.full_name || currentUser.username;
-    
-    var pr = document.getElementById('profileRole');
-    if (pr) pr.textContent = currentUser.role || 'Operator';
-    
-    var pe = document.getElementById('profileExpiry');
+    var pu = document.getElementById('profileUsername'); if (pu) pu.textContent = currentUser.username;
+    var pn = document.getElementById('profileName'); if (pn) pn.textContent = currentUser.full_name || currentUser.username;
+    var pr = document.getElementById('profileRole'); if (pr) pr.textContent = currentUser.role || 'Operator';
+    var pe = document.getElementById('profileExpiry'); 
     if (pe) {
         var expiryFormatted = currentUser.expiry_date || 'Tidak ada';
         pe.innerHTML = '<span>' + expiryFormatted + '</span> <span class="expiry-days-left ' + expiryCheck.daysLeftClass + '">' + expiryCheck.daysLeftText + '</span>';
@@ -378,26 +284,16 @@ function updateProfileInfo() {
 }
 
 function logout() {
-    currentUser = null;
-    currentAccount = null;
-    currentAuthToken = null;
-    lastDeviceId = null;
-    
+    currentUser = null; currentAccount = null; currentAuthToken = null; lastDeviceId = null;
     var ls = document.getElementById('loginScreen');
     var ma = document.getElementById('mainApp');
     var eb = document.getElementById('expiredBanner');
-    
     if (ls) ls.setAttribute('style', 'display:flex!important;align-items:center!important;justify-content:center!important;min-height:100vh!important;width:100%!important;position:fixed!important;top:0!important;left:0!important;z-index:10!important;');
     if (ma) ma.setAttribute('style', 'display:none!important;');
     if (eb) eb.style.display = 'none';
-    
-    var un = document.getElementById('username');
-    if (un) un.value = '';
-    
-    var pw = document.getElementById('password');
-    if (pw) pw.value = '';
-    
-    localStorage.removeItem('bussid_session');
+    var un = document.getElementById('username'); if (un) un.value = '';
+    var pw = document.getElementById('password'); if (pw) pw.value = '';
+    localStorage.removeItem('bussid_session'); 
     showAlert('Logout!', 'success');
     window.scrollTo(0, 0);
 }
@@ -405,78 +301,34 @@ function logout() {
 async function loginWithDeviceId(deviceId) {
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return false; }
-    
     showLoading('Menghubungkan...');
-    
     try {
         var cleanInput = sanitize(deviceId.trim());
-        if (cleanInput.includes('.')) {
-            currentAuthToken = cleanInput;
-        } else {
+        if (cleanInput.includes('.')) { currentAuthToken = cleanInput; }
+        else {
             var cid = cleanInput.toLowerCase().replace(/^android-/, '');
-            var data = await callRvnstore('/Client/LoginWithAndroidDeviceID', 'POST', {
-                TitleId: "4AE9",
-                AndroidDeviceId: cid,
-                CreateAccount: true,
-                InfoRequestParameters: { GetUserAccountInfo: true, GetUserVirtualCurrency: true, GetPlayerProfile: true }
-            }, null);
-            if (data.data && data.data.SessionTicket) {
-                currentAuthToken = data.data.SessionTicket;
-            } else {
-                hideLoading();
-                throw new Error('Device ID tidak valid!');
-            }
+            var data = await callRvnstore('/Client/LoginWithAndroidDeviceID', 'POST', { TitleId: "4AE9", AndroidDeviceId: cid, CreateAccount: true, InfoRequestParameters: { GetUserAccountInfo: true, GetUserVirtualCurrency: true, GetPlayerProfile: true } }, null);
+            if (data.data && data.data.SessionTicket) { currentAuthToken = data.data.SessionTicket; }
+            else { hideLoading(); throw new Error('Device ID tidak valid!'); }
         }
-        
         var info = await getUserInfoFromPlayFab();
-        if (info) {
-            currentAccount = {
-                deviceId: cleanInput,
-                name: info.name,
-                balance: info.balance,
-                facebook: info.facebook,
-                facebookAvatarUrl: info.facebookAvatarUrl,
-                playFabId: info.playFabId
-            };
-            hideLoading();
-            return true;
-        }
-        
-        hideLoading();
-        throw new Error('Gagal!');
-    } catch (error) {
-        hideLoading();
-        showAlert(error.message, 'error');
-        return false;
-    }
+        if (info) { currentAccount = { deviceId: cleanInput, name: info.name, balance: info.balance, facebook: info.facebook, facebookAvatarUrl: info.facebookAvatarUrl, playFabId: info.playFabId }; hideLoading(); return true; }
+        hideLoading(); throw new Error('Gagal!');
+    } catch (error) { hideLoading(); showAlert(error.message, 'error'); return false; }
 }
 
 async function getUserInfoFromPlayFab() {
     if (!currentAuthToken) return null;
     try {
-        var result = await callRvnstore('/Client/GetPlayerCombinedInfo', 'POST', {
-            InfoRequestParameters: { GetUserAccountInfo: true, GetUserVirtualCurrency: true, GetPlayerProfile: true }
-        }, currentAuthToken);
-        
+        var result = await callRvnstore('/Client/GetPlayerCombinedInfo', 'POST', { InfoRequestParameters: { GetUserAccountInfo: true, GetUserVirtualCurrency: true, GetPlayerProfile: true } }, currentAuthToken);
         if (result.data) {
-            var info = result.data.InfoResultPayload;
-            var acc = info.AccountInfo;
+            var info = result.data.InfoResultPayload; var acc = info.AccountInfo;
             var name = (acc && acc.TitleInfo) ? (acc.TitleInfo.DisplayName || 'Unknown') : 'Unknown';
             var balance = info.UserVirtualCurrency ? (info.UserVirtualCurrency.RP || 0) : 0;
             var pfid = acc ? (acc.PlayFabId || '-') : '-';
             var fb = { id: null, name: 'Tidak tertaut', email: null, isConnected: false };
             var fbAvatar = null;
-            
-            if (acc && acc.FacebookInfo) {
-                fb = {
-                    id: acc.FacebookInfo.FacebookId || null,
-                    name: acc.FacebookInfo.FullName || 'Tidak tertaut',
-                    email: acc.FacebookInfo.Email || null,
-                    isConnected: true
-                };
-                if (fb.id) fbAvatar = 'https://graph.facebook.com/' + fb.id + '/picture?type=large';
-            }
-            
+            if (acc && acc.FacebookInfo) { fb = { id: acc.FacebookInfo.FacebookId || null, name: acc.FacebookInfo.FullName || 'Tidak tertaut', email: acc.FacebookInfo.Email || null, isConnected: true }; if (fb.id) fbAvatar = 'https://graph.facebook.com/' + fb.id + '/picture?type=large'; }
             return { name: name, balance: balance, facebook: fb, facebookAvatarUrl: fbAvatar, playFabId: pfid };
         }
     } catch(e) {}
@@ -484,28 +336,16 @@ async function getUserInfoFromPlayFab() {
 }
 
 function tampilkanFotoProfile(acc) {
-    var c = document.getElementById('profilePhoto');
-    if (!c) return;
-    c.innerHTML = '';
+    var c = document.getElementById('profilePhoto'); if (!c) return; c.innerHTML = '';
     var url = acc && acc.facebookAvatarUrl ? acc.facebookAvatarUrl : null;
     if (url && url !== 'null' && url !== '') {
-        var img = document.createElement('img');
-        img.src = url;
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'cover';
-        img.style.borderRadius = '50%';
-        img.onload = function() { c.appendChild(img); };
-        img.onerror = function() { c.innerHTML = '<i class="fas fa-user"></i>'; };
-    } else {
-        c.innerHTML = '<i class="fas fa-user"></i>';
-    }
+        var img = document.createElement('img'); img.src = url; img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover'; img.style.borderRadius = '50%';
+        img.onload = function() { c.appendChild(img); }; img.onerror = function() { c.innerHTML = '<i class="fas fa-user"></i>'; };
+    } else { c.innerHTML = '<i class="fas fa-user"></i>'; }
 }
 
 function tampilkanInfoFacebook(fb) {
-    var d = document.getElementById('facebookDetails');
-    if (!d) return;
-    
+    var d = document.getElementById('facebookDetails'); if (!d) return;
     if (fb && fb.isConnected && fb.id) {
         d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#1877F2;">✅ TERHUBUNG</span></div>' +
             '<div class="fb-info-row"><span class="fb-info-label">Facebook ID:</span><span class="fb-info-value" style="font-family:monospace;font-size:12px;">' + sanitize(fb.id) + '</span></div>' +
@@ -519,30 +359,15 @@ function tampilkanInfoFacebook(fb) {
 async function searchAccount() {
     var id = document.getElementById('deviceId').value.trim();
     if (!id) { showAlert('Masukkan Device ID!', 'error'); return; }
-    
     var ok = await loginWithDeviceId(id);
-    if (ok) {
-        lastDeviceId = id;
-        showAccountInfo(currentAccount);
-        hideAllSections();
-        var ai = document.getElementById('accountInfo');
-        if (ai) ai.style.display = 'block';
-        showAlert('Akun ditemukan!', 'success');
-    }
+    if (ok) { lastDeviceId = id; showAccountInfo(currentAccount); hideAllSections(); var ai = document.getElementById('accountInfo'); if (ai) ai.style.display = 'block'; showAlert('Akun ditemukan!', 'success'); }
 }
 
 function showAccountInfo(acc) {
-    var an = document.getElementById('accountName');
-    if (an) an.textContent = sanitize(acc.name || '-');
-    
-    var ab = document.getElementById('accountBalance');
-    if (ab) ab.textContent = formatCurrency(acc.balance);
-    
-    var pi = document.getElementById('playfabId');
-    if (pi) pi.textContent = acc.playFabId || '-';
-    
-    tampilkanFotoProfile(acc);
-    tampilkanInfoFacebook(acc.facebook);
+    var an = document.getElementById('accountName'); if (an) an.textContent = sanitize(acc.name || '-');
+    var ab = document.getElementById('accountBalance'); if (ab) ab.textContent = formatCurrency(acc.balance);
+    var pi = document.getElementById('playfabId'); if (pi) pi.textContent = acc.playFabId || '-';
+    tampilkanFotoProfile(acc); tampilkanInfoFacebook(acc.facebook);
 }
 
 function refreshAccountInfo() {
@@ -550,393 +375,76 @@ function refreshAccountInfo() {
     showLoading('Refresh...');
     setTimeout(async function() {
         var info = await getUserInfoFromPlayFab();
-        if (info) {
-            currentAccount.balance = info.balance;
-            currentAccount.name = info.name;
-            currentAccount.facebook = info.facebook;
-            currentAccount.facebookAvatarUrl = info.facebookAvatarUrl;
-            currentAccount.playFabId = info.playFabId;
-            showAccountInfo(currentAccount);
-            hideLoading();
-            showAlert('Updated!', 'success');
-        } else {
-            hideLoading();
-        }
+        if (info) { currentAccount.balance = info.balance; currentAccount.name = info.name; currentAccount.facebook = info.facebook; currentAccount.facebookAvatarUrl = info.facebookAvatarUrl; currentAccount.playFabId = info.playFabId; showAccountInfo(currentAccount); hideLoading(); showAlert('Updated!', 'success'); }
+        else { hideLoading(); }
     }, 1000);
 }
 
-function setAmount(a) {
-    var ta = document.getElementById('topupAmount');
-    if (ta) ta.value = a;
-    validateTopupAmount();
-}
+function setAmount(a) { var ta = document.getElementById('topupAmount'); if (ta) ta.value = a; validateTopupAmount(); }
+function showTopupFromAccount() { if (!currentAccount) return; var ta = document.getElementById('topupAccountName'); if (ta) ta.textContent = currentAccount.name; var tc = document.getElementById('topupCurrentBalance'); if (tc) tc.textContent = formatCurrency(currentAccount.balance); hideAllSections(); var ts = document.getElementById('topupSection'); if (ts) ts.style.display = 'block'; }
+function showKurasFromAccount() { if (!currentAccount) return; var ka = document.getElementById('kurasAccountName'); if (ka) ka.textContent = currentAccount.name; var kc = document.getElementById('kurasCurrentBalance'); if (kc) kc.textContent = formatCurrency(currentAccount.balance); hideAllSections(); var ks = document.getElementById('kurasSection'); if (ks) ks.style.display = 'block'; }
+function showChangeNameSection() { if (!currentAccount) return; var cn = document.getElementById('changeNameAccountLabel'); if (cn) cn.textContent = currentAccount.name; hideAllSections(); var cs = document.getElementById('changeNameSection'); if (cs) cs.style.display = 'block'; }
 
-function showTopupFromAccount() {
-    if (!currentAccount) return;
-    var ta = document.getElementById('topupAccountName');
-    if (ta) ta.textContent = currentAccount.name;
-    var tc = document.getElementById('topupCurrentBalance');
-    if (tc) tc.textContent = formatCurrency(currentAccount.balance);
-    hideAllSections();
-    var ts = document.getElementById('topupSection');
-    if (ts) ts.style.display = 'block';
-}
-
-function showKurasFromAccount() {
-    if (!currentAccount) return;
-    var ka = document.getElementById('kurasAccountName');
-    if (ka) ka.textContent = currentAccount.name;
-    var kc = document.getElementById('kurasCurrentBalance');
-    if (kc) kc.textContent = formatCurrency(currentAccount.balance);
-    hideAllSections();
-    var ks = document.getElementById('kurasSection');
-    if (ks) ks.style.display = 'block';
-}
-
-function showChangeNameSection() {
-    if (!currentAccount) return;
-    var cn = document.getElementById('changeNameAccountLabel');
-    if (cn) cn.textContent = currentAccount.name;
-    hideAllSections();
-    var cs = document.getElementById('changeNameSection');
-    if (cs) cs.style.display = 'block';
-}
-
-async function processTopup() {
-    if (!currentAccount) return;
-    var amt = parseAmount(document.getElementById('topupAmount').value.trim());
-    if (amt <= 0) { showAlert('Jumlah tidak valid!', 'error'); return; }
-    showConfirm('TOP UP', 'Top up ' + formatCurrency(amt) + '?', 'topup', { amount: amt });
-}
-
-async function executeTopup(amt) {
-    showLoading('Memproses...');
-    var old = currentAccount.balance;
-    var ok = await addCashToAccount(amt);
-    if (ok) {
-        var trx = {
-            type: 'topup',
-            deviceId: currentAccount.deviceId,
-            accountName: currentAccount.name,
-            amount: amt,
-            oldBalance: old,
-            newBalance: currentAccount.balance,
-            operator: currentUser.username,
-            timestamp: Date.now(),
-            status: 'success'
-        };
-        await callRevanstore('transactions', 'POST', trx);
-        hideLoading();
-        showReceipt(trx);
-        showAlert('Berhasil!', 'success');
-    } else {
-        hideLoading();
-        showAlert('Gagal!', 'error');
-    }
-}
-
-async function processKuras() {
-    if (!currentAccount) return;
-    var amt = parseAmount(document.getElementById('kurasAmount').value.trim()) || currentAccount.balance;
-    if (amt <= 0 || amt > currentAccount.balance) { showAlert('Saldo tidak cukup!', 'error'); return; }
-    showConfirm('KURAS', 'Kuras ' + formatCurrency(amt) + '?', 'kuras', { amount: amt });
-}
-
-async function executeKuras(amt) {
-    showLoading('Memproses...');
-    var old = currentAccount.balance;
-    var ok = await addCashToAccount(-amt);
-    if (ok) {
-        var trx = {
-            type: 'kuras',
-            deviceId: currentAccount.deviceId,
-            accountName: currentAccount.name,
-            amount: amt,
-            oldBalance: old,
-            newBalance: currentAccount.balance,
-            operator: currentUser.username,
-            timestamp: Date.now(),
-            status: 'success'
-        };
-        await callRevanstore('transactions', 'POST', trx);
-        hideLoading();
-        showReceipt(trx);
-        showAlert('Berhasil!', 'success');
-    } else {
-        hideLoading();
-        showAlert('Gagal!', 'error');
-    }
-}
+async function processTopup() { if (!currentAccount) return; var amt = parseAmount(document.getElementById('topupAmount').value.trim()); if (amt <= 0) { showAlert('Jumlah tidak valid!', 'error'); return; } showConfirm('TOP UP', 'Top up ' + formatCurrency(amt) + '?', 'topup', { amount: amt }); }
+async function executeTopup(amt) { showLoading('Memproses...'); var old = currentAccount.balance; var ok = await addCashToAccount(amt); if (ok) { var trx = { type: 'topup', deviceId: currentAccount.deviceId, accountName: currentAccount.name, amount: amt, oldBalance: old, newBalance: currentAccount.balance, operator: currentUser.username, timestamp: Date.now(), status: 'success' }; await callRevanstore('transactions', 'POST', trx); hideLoading(); showReceipt(trx); showAlert('Berhasil!', 'success'); } else { hideLoading(); showAlert('Gagal!', 'error'); } }
+async function processKuras() { if (!currentAccount) return; var amt = parseAmount(document.getElementById('kurasAmount').value.trim()) || currentAccount.balance; if (amt <= 0 || amt > currentAccount.balance) { showAlert('Saldo tidak cukup!', 'error'); return; } showConfirm('KURAS', 'Kuras ' + formatCurrency(amt) + '?', 'kuras', { amount: amt }); }
+async function executeKuras(amt) { showLoading('Memproses...'); var old = currentAccount.balance; var ok = await addCashToAccount(-amt); if (ok) { var trx = { type: 'kuras', deviceId: currentAccount.deviceId, accountName: currentAccount.name, amount: amt, oldBalance: old, newBalance: currentAccount.balance, operator: currentUser.username, timestamp: Date.now(), status: 'success' }; await callRevanstore('transactions', 'POST', trx); hideLoading(); showReceipt(trx); showAlert('Berhasil!', 'success'); } else { hideLoading(); showAlert('Gagal!', 'error'); } }
 
 async function addCashToAccount(amt) {
     if (!currentAuthToken) return false;
-    try {
-        var res = await callRvnstore('/Client/ExecuteCloudScript', 'POST', {
-            FunctionName: "AddRp",
-            FunctionParameter: { addValue: amt },
-            RevisionSelection: "Live",
-            GeneratePlayStreamEvent: true
-        }, currentAuthToken);
-        if (res.data) {
-            await new Promise(function(r) { setTimeout(r, 2000); });
-            var info = await getUserInfoFromPlayFab();
-            if (info) {
-                currentAccount.balance = info.balance;
-                currentAccount.facebook = info.facebook;
-                currentAccount.facebookAvatarUrl = info.facebookAvatarUrl;
-                currentAccount.playFabId = info.playFabId;
-                showAccountInfo(currentAccount);
-                return true;
-            }
-        }
-        return false;
-    } catch(e) { return false; }
+    try { var res = await callRvnstore('/Client/ExecuteCloudScript', 'POST', { FunctionName: "AddRp", FunctionParameter: { addValue: amt }, RevisionSelection: "Live", GeneratePlayStreamEvent: true }, currentAuthToken); if (res.data) { await new Promise(function(r) { setTimeout(r, 2000); }); var info = await getUserInfoFromPlayFab(); if (info) { currentAccount.balance = info.balance; currentAccount.facebook = info.facebook; currentAccount.facebookAvatarUrl = info.facebookAvatarUrl; currentAccount.playFabId = info.playFabId; showAccountInfo(currentAccount); return true; } } return false; } catch(e) { return false; }
 }
 
 function showReceipt(trx) {
     hideAllSections();
-    var typeText = trx.type === 'topup' ? 'TOP UP' : 'KURAS';
-    var sign = trx.type === 'topup' ? '+' : '-';
+    var typeText = trx.type === 'topup' ? 'TOP UP' : 'KURAS', sign = trx.type === 'topup' ? '+' : '-';
     var rc = document.getElementById('receiptContent');
-    if (rc) {
-        rc.innerHTML = '<div class="receipt-content"><div class="receipt-header"><h3>BUS SIMULATOR ID</h3><p>Detail Transaksi</p></div>' +
-            '<div class="receipt-details">' +
-            '<div class="receipt-row"><span>Akun:</span><span>' + sanitize(trx.accountName) + '</span></div>' +
-            '<div class="receipt-row"><span>Jenis:</span><span>' + typeText + '</span></div>' +
-            '<div class="receipt-row"><span>Jumlah:</span><span style="color:' + (trx.type === 'topup' ? '#10b981' : '#f59e0b') + '">' + sign + formatCurrency(trx.amount) + '</span></div>' +
-            '<div class="receipt-row"><span>Saldo Awal:</span><span>' + formatCurrency(trx.oldBalance) + '</span></div>' +
-            '<div class="receipt-row"><span>Saldo Akhir:</span><span>' + formatCurrency(trx.newBalance) + '</span></div>' +
-            '<div class="receipt-row"><span>Tanggal:</span><span>' + new Date(trx.timestamp).toLocaleString('id-ID') + '</span></div>' +
-            '<div class="receipt-row"><span>Status:</span><span style="color:#10b981;">BERHASIL</span></div>' +
-            '</div></div>' +
-            '<div style="display:flex;gap:8px;margin-top:20px;">' +
-            '<button class="btn btn-primary" onclick="window._showTrxModal()" style="flex:1;">TRX LAGI</button>' +
-            '<button class="btn btn-secondary" onclick="window._goHome()" style="flex:1;">HOME</button></div>';
-    }
-    var rs = document.getElementById('receiptSection');
-    if (rs) rs.style.display = 'block';
+    if (rc) rc.innerHTML = '<div class="receipt-content"><div class="receipt-header"><h3>BUSSID</h3><p>Detail Transaksi</p></div><div class="receipt-details"><div class="receipt-row"><span>Akun:</span><span>' + sanitize(trx.accountName) + '</span></div><div class="receipt-row"><span>Jenis:</span><span>' + typeText + '</span></div><div class="receipt-row"><span>Jumlah:</span><span style="color:' + (trx.type === 'topup' ? '#10b981' : '#f59e0b') + '">' + sign + formatCurrency(trx.amount) + '</span></div><div class="receipt-row"><span>Saldo Awal:</span><span>' + formatCurrency(trx.oldBalance) + '</span></div><div class="receipt-row"><span>Saldo Akhir:</span><span>' + formatCurrency(trx.newBalance) + '</span></div><div class="receipt-row"><span>Tanggal:</span><span>' + new Date(trx.timestamp).toLocaleString('id-ID') + '</span></div><div class="receipt-row"><span>Status:</span><span style="color:#10b981;">BERHASIL</span></div></div></div><div style="display:flex;gap:8px;margin-top:20px;"><button class="btn btn-primary" onclick="window._showTrxModal()" style="flex:1;">TRX LAGI</button><button class="btn btn-secondary" onclick="window._goHome()" style="flex:1;">HOME</button></div>';
+    var rs = document.getElementById('receiptSection'); if (rs) rs.style.display = 'block';
 }
 
-window._showTrxModal = function() {
-    var modal = document.getElementById('trxLagiModal');
-    if (modal) { modal.style.display = 'flex'; modal.style.opacity = '1'; modal.style.visibility = 'visible'; }
-};
-
-window._tutupTrxModal = function() {
-    var modal = document.getElementById('trxLagiModal');
-    if (modal) modal.style.display = 'none';
-};
-
+window._showTrxModal = function() { var modal = document.getElementById('trxLagiModal'); if (modal) { modal.style.display = 'flex'; modal.style.opacity = '1'; modal.style.visibility = 'visible'; } };
+window._tutupTrxModal = function() { var modal = document.getElementById('trxLagiModal'); if (modal) modal.style.display = 'none'; };
 window._pilihTopup = function() { window._tutupTrxModal(); showTopupFromAccount(); };
 window._pilihKuras = function() { window._tutupTrxModal(); showKurasFromAccount(); };
 window._goHome = function() { showHome(); };
-
 function backToHome() { showHome(); }
 
 async function showHistory() {
-    hideAllSections();
-    var hs = document.getElementById('historySection');
-    if (hs) hs.style.display = 'block';
-    showLoading('Mengambil data...');
-    
+    hideAllSections(); var hs = document.getElementById('historySection'); if (hs) hs.style.display = 'block'; showLoading('Mengambil data...');
     try {
-        var data = await callRevanstore('transactions', 'GET');
-        var list = document.getElementById('transactionsList');
-        
-        if (!data || typeof data !== 'object') {
-            if (list) list.innerHTML = '<p style="text-align:center;color:#666;">Belum ada transaksi</p>';
-            hideLoading();
-            return;
-        }
-        
-        var arr = Object.keys(data).map(function(k) {
-            return {
-                id: k,
-                type: data[k].type,
-                accountName: data[k].accountName,
-                amount: data[k].amount,
-                oldBalance: data[k].oldBalance,
-                newBalance: data[k].newBalance,
-                operator: data[k].operator,
-                timestamp: data[k].timestamp
-            };
-        }).filter(function(t) {
-            return t.operator === currentUser.username;
-        }).sort(function(a, b) {
-            return b.timestamp - a.timestamp;
-        });
-        
-        if (arr.length === 0) {
-            if (list) list.innerHTML = '<p style="text-align:center;color:#666;">Belum ada transaksi</p>';
-            hideLoading();
-            return;
-        }
-        
-        var html = '';
-        arr.forEach(function(t) {
-            var typeText = t.type === 'topup' ? 'TOP UP' : 'KURAS';
-            var sign = t.type === 'topup' ? '+' : '-';
-            html += '<div class="transaction-item ' + t.type + '">' +
-                '<div class="transaction-header"><div>' + sanitize(t.accountName) + '</div><div class="transaction-amount">' + sign + formatCurrency(t.amount) + '</div></div>' +
-                '<div class="transaction-details"><div>' + typeText + '</div><div>' + new Date(t.timestamp).toLocaleString('id-ID') + '</div></div>' +
-                '<div class="transaction-balance"><span>Sebelum: ' + formatCurrency(t.oldBalance) + '</span><span>→</span><span>Sesudah: ' + formatCurrency(t.newBalance) + '</span></div>' +
-                '</div>';
-        });
-        
-        if (list) list.innerHTML = html;
-        hideLoading();
+        var data = await callRevanstore('transactions', 'GET'); var list = document.getElementById('transactionsList');
+        if (!data || typeof data !== 'object') { if (list) list.innerHTML = '<p style="text-align:center;color:#666;">Belum ada transaksi</p>'; hideLoading(); return; }
+        var arr = Object.keys(data).map(function(k) { return { id: k, type: data[k].type, accountName: data[k].accountName, amount: data[k].amount, oldBalance: data[k].oldBalance, newBalance: data[k].newBalance, operator: data[k].operator, timestamp: data[k].timestamp }; }).filter(function(t) { return t.operator === currentUser.username; }).sort(function(a, b) { return b.timestamp - a.timestamp; });
+        if (arr.length === 0) { if (list) list.innerHTML = '<p style="text-align:center;color:#666;">Belum ada transaksi</p>'; hideLoading(); return; }
+        var html = ''; arr.forEach(function(t) { var typeText = t.type === 'topup' ? 'TOP UP' : 'KURAS', sign = t.type === 'topup' ? '+' : '-'; html += '<div class="transaction-item ' + t.type + '"><div class="transaction-header"><div>' + sanitize(t.accountName) + '</div><div class="transaction-amount">' + sign + formatCurrency(t.amount) + '</div></div><div class="transaction-details"><div>' + typeText + '</div><div>' + new Date(t.timestamp).toLocaleString('id-ID') + '</div></div><div class="transaction-balance"><span>Sebelum: ' + formatCurrency(t.oldBalance) + '</span><span>→</span><span>Sesudah: ' + formatCurrency(t.newBalance) + '</span></div></div>'; });
+        if (list) list.innerHTML = html; hideLoading();
     } catch(e) { hideLoading(); showAlert('Gagal!', 'error'); }
 }
 
-function showSettings() {
-    hideAllSections();
-    var ss = document.getElementById('settingsSection');
-    if (ss) ss.style.display = 'block';
-    updateProfileInfo();
-}
+function showSettings() { hideAllSections(); var ss = document.getElementById('settingsSection'); if (ss) ss.style.display = 'block'; updateProfileInfo(); }
+function showConfirm(title, message, action, data) { var mt = document.getElementById('modalConfirmTitle'); if (mt) mt.innerHTML = sanitize(title); var mm = document.getElementById('modalConfirmMessage'); if (mm) mm.innerHTML = sanitize(message); pendingAction = action; pendingData = data; var cm = document.getElementById('confirmModal'); if (cm) cm.classList.add('active'); }
+function cancelConfirm() { pendingAction = null; pendingData = null; var cm = document.getElementById('confirmModal'); if (cm) cm.classList.remove('active'); }
 
-function showConfirm(title, message, action, data) {
-    var mt = document.getElementById('modalConfirmTitle');
-    if (mt) mt.innerHTML = sanitize(title);
-    var mm = document.getElementById('modalConfirmMessage');
-    if (mm) mm.innerHTML = sanitize(message);
-    pendingAction = action;
-    pendingData = data;
-    var cm = document.getElementById('confirmModal');
-    if (cm) cm.classList.add('active');
-}
-
-function cancelConfirm() {
-    pendingAction = null;
-    pendingData = null;
-    var cm = document.getElementById('confirmModal');
-    if (cm) cm.classList.remove('active');
-}
-
-async function confirmAction() {
-    if (!pendingAction || !pendingData) return;
-    var cm = document.getElementById('confirmModal');
-    if (cm) cm.classList.remove('active');
-    if (pendingAction === 'topup') await executeTopup(pendingData.amount);
-    else if (pendingAction === 'kuras') await executeKuras(pendingData.amount);
-    else if (pendingAction === 'changename') await executeChangeName(pendingData);
-    pendingAction = null;
-    pendingData = null;
-}
-
-async function checkNameAvailability() {
-    var d = document.getElementById('nameAvailability');
-    if (d) { d.innerHTML = 'Mengecek...'; d.style.display = 'block'; }
-    setTimeout(function() {
-        var d = document.getElementById('nameAvailability');
-        if (d) d.innerHTML = '✅ Tersedia!';
-    }, 1000);
-}
-
-async function changeAccountNameSimple() {
-    var name = sanitize(document.getElementById('newAccountName').value.trim());
-    if (!name) { showAlert('Masukkan nama!', 'error'); return; }
-    if (!currentAccount || !currentAuthToken) { showAlert('Cari akun dulu!', 'error'); return; }
-    showConfirm('GANTI NAMA', 'Ganti ke "' + name + '"?', 'changename', name);
-}
+async function confirmAction() { if (!pendingAction || !pendingData) return; var cm = document.getElementById('confirmModal'); if (cm) cm.classList.remove('active'); if (pendingAction === 'topup') await executeTopup(pendingData.amount); else if (pendingAction === 'kuras') await executeKuras(pendingData.amount); else if (pendingAction === 'changename') await executeChangeName(pendingData); pendingAction = null; pendingData = null; }
+async function checkNameAvailability() { var d = document.getElementById('nameAvailability'); if (d) { d.innerHTML = 'Mengecek...'; d.style.display = 'block'; } setTimeout(function() { var d = document.getElementById('nameAvailability'); if (d) d.innerHTML = '✅ Tersedia!'; }, 1000); }
+async function changeAccountNameSimple() { var name = sanitize(document.getElementById('newAccountName').value.trim()); if (!name) { showAlert('Masukkan nama!', 'error'); return; } if (!currentAccount || !currentAuthToken) { showAlert('Cari akun dulu!', 'error'); return; } showConfirm('GANTI NAMA', 'Ganti ke "' + name + '"?', 'changename', name); }
 
 async function executeChangeName(newName) {
     showLoading('Mengubah...');
-    try {
-        var res = await callRvnstore('/Client/UpdateUserTitleDisplayName', 'POST', { DisplayName: newName }, currentAuthToken);
-        if (res.data && res.data.DisplayName) {
-            var old = currentAccount.name;
-            currentAccount.name = newName;
-            var an = document.getElementById('accountName');
-            if (an) an.textContent = newName;
-            await callRevanstore('transactions', 'POST', {
-                type: 'gantinama',
-                accountName: currentAccount.name,
-                oldName: old,
-                newName: newName,
-                operator: currentUser.username,
-                timestamp: Date.now(),
-                status: 'success'
-            });
-            hideAllSections();
-            var rc = document.getElementById('receiptContent');
-            if (rc) rc.innerHTML = '<div class="receipt-content"><div class="receipt-header"><h3>GANTI NAMA</h3></div>' +
-                '<div class="receipt-details"><div class="receipt-row"><span>Lama:</span><span>' + sanitize(old) + '</span></div>' +
-                '<div class="receipt-row"><span>Baru:</span><span style="color:#0ea5e9;">' + sanitize(newName) + '</span></div></div></div>' +
-                '<button class="btn btn-primary btn-block" onclick="window._goBackAccount()">KEMBALI</button>';
-            var rs = document.getElementById('receiptSection');
-            if (rs) rs.style.display = 'block';
-            hideLoading();
-            showAlert('Berhasil!', 'success');
-        } else {
-            hideLoading();
-            showAlert('Gagal!', 'error');
-        }
-    } catch(e) {
-        hideLoading();
-        showAlert('Gagal!', 'error');
-    }
+    try { var res = await callRvnstore('/Client/UpdateUserTitleDisplayName', 'POST', { DisplayName: newName }, currentAuthToken); if (res.data && res.data.DisplayName) { var old = currentAccount.name; currentAccount.name = newName; var an = document.getElementById('accountName'); if (an) an.textContent = newName; await callRevanstore('transactions', 'POST', { type: 'gantinama', accountName: currentAccount.name, oldName: old, newName: newName, operator: currentUser.username, timestamp: Date.now(), status: 'success' }); hideAllSections(); var rc = document.getElementById('receiptContent'); if (rc) rc.innerHTML = '<div class="receipt-content"><div class="receipt-header"><h3>GANTI NAMA</h3></div><div class="receipt-details"><div class="receipt-row"><span>Lama:</span><span>' + sanitize(old) + '</span></div><div class="receipt-row"><span>Baru:</span><span style="color:#0ea5e9;">' + sanitize(newName) + '</span></div></div></div><button class="btn btn-primary btn-block" onclick="window._goBackAccount()">KEMBALI</button>'; var rs = document.getElementById('receiptSection'); if (rs) rs.style.display = 'block'; hideLoading(); showAlert('Berhasil!', 'success'); } else { hideLoading(); showAlert('Gagal!', 'error'); } } catch(e) { hideLoading(); showAlert('Gagal!', 'error'); }
 }
 
 window._goBackAccount = function() { backToAccount(); };
-
-function showNameChangeModal(msg, type) {
-    var m = document.getElementById('nameChangeModal');
-    var nm = document.getElementById('nameChangeMessage');
-    if (nm) nm.innerHTML = sanitize(msg);
-    if (m) m.classList.add('active');
-}
-
-function closeNameChangeModal() {
-    var m = document.getElementById('nameChangeModal');
-    if (m) m.classList.remove('active');
-}
-
-function setupQuickAmounts() {
-    var q = document.querySelector('.quick-amounts');
-    if (q) q.innerHTML = '<button class="btn-quick" onclick="setAmount(\'2M\')">2M</button>' +
-        '<button class="btn-quick" onclick="setAmount(\'1M\')">1M</button>' +
-        '<button class="btn-quick" onclick="setAmount(\'500JT\')">500JT</button>' +
-        '<button class="btn-quick" onclick="setAmount(\'100JT\')">100JT</button>' +
-        '<button class="btn-quick" onclick="setAmount(\'50JT\')">50JT</button>';
-}
-
-function setupEventListeners() {
-    var u = document.getElementById('username');
-    if (u) u.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            var p = document.getElementById('password');
-            if (p) p.focus();
-        }
-    });
-    
-    var p = document.getElementById('password');
-    if (p) p.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') login();
-    });
-    
-    var t = document.getElementById('topupAmount');
-    if (t) t.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') processTopup();
-    });
-    
-    var d = document.getElementById('deviceId');
-    if (d) d.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') searchAccount();
-    });
-}
+function showNameChangeModal(msg, type) { var m = document.getElementById('nameChangeModal'); var nm = document.getElementById('nameChangeMessage'); if (nm) nm.innerHTML = sanitize(msg); if (m) m.classList.add('active'); }
+function closeNameChangeModal() { var m = document.getElementById('nameChangeModal'); if (m) m.classList.remove('active'); }
+function setupQuickAmounts() { var q = document.querySelector('.quick-amounts'); if (q) q.innerHTML = '<button class="btn-quick" onclick="setAmount(\'2M\')">2M</button><button class="btn-quick" onclick="setAmount(\'1M\')">1M</button><button class="btn-quick" onclick="setAmount(\'500JT\')">500JT</button><button class="btn-quick" onclick="setAmount(\'100JT\')">100JT</button><button class="btn-quick" onclick="setAmount(\'50JT\')">50JT</button>'; }
+function setupEventListeners() { var u = document.getElementById('username'); if (u) u.addEventListener('keypress', function(e) { if (e.key === 'Enter') { var p = document.getElementById('password'); if (p) p.focus(); } }); var p = document.getElementById('password'); if (p) p.addEventListener('keypress', function(e) { if (e.key === 'Enter') login(); }); var t = document.getElementById('topupAmount'); if (t) t.addEventListener('keypress', function(e) { if (e.key === 'Enter') processTopup(); }); var d = document.getElementById('deviceId'); if (d) d.addEventListener('keypress', function(e) { if (e.key === 'Enter') searchAccount(); }); }
 
 document.addEventListener('DOMContentLoaded', async function() {
-    setupEventListeners();
-    setupQuickAmounts();
-    
+    setupEventListeners(); setupQuickAmounts();
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
-            e.preventDefault();
-            return false;
-        }
-    });
+    document.addEventListener('keydown', function(e) { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) { e.preventDefault(); return false; } });
     
     if (!fingerprint) fingerprint = await getFingerprint();
     var blocked = await checkIfBlocked();
@@ -949,40 +457,5 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (ma) ma.setAttribute('style', 'display:none!important;');
     
     var saved = localStorage.getItem('bussid_session');
-    if (saved) {
-        try {
-            var session = JSON.parse(saved);
-            var age = Date.now() - (session.timestamp || 0);
-            if (age > 7 * 24 * 60 * 60 * 1000) {
-                localStorage.removeItem('bussid_session');
-                return;
-            }
-            var result = await callRevanstore('login', 'POST', {
-                username: session.username,
-                password: session.password
-            });
-            if (result && result.success) {
-                var user = result.data;
-                var expiryCheck = checkAccountExpiry(user);
-                if (expiryCheck.expired) { showExpiredBanner(); return; }
-                currentUser = {
-                    id: user.id,
-                    username: user.username,
-                    password: session.password,
-                    role: user.role || 'Operator',
-                    full_name: user.full_name || user.username,
-                    expiry_date: user.expiry_date || ''
-                };
-                if (ls) ls.setAttribute('style', 'display:none!important;');
-                if (ma) ma.setAttribute('style', 'display:block!important;');
-                showHome();
-                updateProfileInfo();
-                showAlert('Selamat datang!', 'success');
-            } else {
-                localStorage.removeItem('bussid_session');
-            }
-        } catch(e) {
-            localStorage.removeItem('bussid_session');
-        }
-    }
+    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; if (ls) ls.setAttribute('style', 'display:none!important;'); if (ma) ma.setAttribute('style', 'display:block!important;'); showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
 });
