@@ -1,6 +1,6 @@
 var API_REVANSTORE = '/api/revanstore';
 var API_RVNSTORE = '/api/rvnstore';
-var API_KEY = '2145dd5b-b55d-49f1-9b3f-9543a5840f65';
+var ADMIN_KEY = 'dhagwxwhu:f4afc5aa03e73130f5e055dfe6a708c4dc40759b';
 var WHATSAPP_NUMBER = "6285199120995";
 var MAX_TOPUP_AMOUNT = 2147483647;
 var MAX_PASSWORD_LENGTH = 20;
@@ -77,10 +77,43 @@ async function checkIfBlocked() {
 async function callRevanstore(path, method, data) {
     if (!fingerprint) fingerprint = await getFingerprint();
     if (isBlocked && path !== 'check_blocked') throw new Error('Akses ditolak');
-    var res = await fetch(API_REVANSTORE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'X-Fingerprint': fingerprint }, body: JSON.stringify({ path: path, method: method || 'GET', data: data || null }) });
+    
+    var payload = {
+        path: path,
+        method: method || 'GET',
+        data: data || null,
+        timestamp: Date.now()
+    };
+    
+    var encryptedPayload = CryptoJS.AES.encrypt(JSON.stringify(payload), ADMIN_KEY).toString();
+    
+    var headers = {
+        'Content-Type': 'application/json',
+        'X-Fingerprint': fingerprint
+    };
+    
+    if (currentUser && currentUser.username) {
+        headers['X-Operator'] = CryptoJS.AES.encrypt(currentUser.username, ADMIN_KEY).toString();
+    }
+    
+    var res = await fetch(API_REVANSTORE, { 
+        method: 'POST', 
+        headers: headers, 
+        body: JSON.stringify({ data: encryptedPayload })
+    });
+    
     if (res.status === 429) throw new Error('Terlalu banyak request');
-    var text = await res.text(); if (!text || text === 'null') return null;
-    return JSON.parse(text);
+    var text = await res.text(); 
+    if (!text || text === 'null') return null;
+    
+    var result = JSON.parse(text);
+    
+    if (result.encrypted && result.data) {
+        var dec = CryptoJS.AES.decrypt(result.data, ADMIN_KEY).toString(CryptoJS.enc.Utf8);
+        if (dec) return JSON.parse(dec);
+    }
+    
+    return result;
 }
 
 async function callRvnstore(endpoint, method, body, authToken) {
@@ -225,7 +258,8 @@ function closeDeleteHistoryModal() { var overlay = document.getElementById('conf
 async function deleteAllHistory() {
     showLoading('Menghapus...');
     try {
-        var transactions = await callRevanstore('transactions', 'GET');
+        var result = await callRevanstore('transactions', 'GET');
+        var transactions = result;
         if (!transactions || typeof transactions !== 'object' || Object.keys(transactions).length === 0) { 
             hideLoading(); 
             showAlert('Tidak ada riwayat!', 'warning'); 
@@ -249,21 +283,6 @@ async function deleteAllHistory() {
     }
 }
 
-async function autoDeleteOldTransactions() {
-    try {
-        var transactions = await callRevanstore('transactions', 'GET');
-        if (!transactions || typeof transactions !== 'object') return;
-        var twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000);
-        var deletePromises = [];
-        for (var key in transactions) {
-            if (transactions[key] && transactions[key].timestamp && transactions[key].timestamp < twoDaysAgo) {
-                deletePromises.push(callRevanstore('transactions/' + key, 'DELETE'));
-            }
-        }
-        await Promise.all(deletePromises);
-    } catch(e) {}
-}
-
 async function login() {
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return; }
@@ -278,16 +297,15 @@ async function login() {
         if (result && result.blocked) { isBlocked = true; localStorage.setItem('bussid_blocked', 'true'); hideLoading(); showBlockedScreen(); return; }
         if (result && result.success) {
             localStorage.removeItem(getBlockKey(username));
-            await callRevanstore('login_success', 'POST', {});
             var user = result.data;
             var expiryCheck = checkAccountExpiry(user);
             if (expiryCheck.expired) { hideLoading(); showExpiredBanner(); return; }
             currentUser = { id: user.id, username: user.username, password: password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' };
+            await callRevanstore('login_success', 'POST', {});
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
             hideLoading(); showHome(); showAlert('Login berhasil!', 'success'); updateProfileInfo();
             localStorage.setItem('bussid_session', JSON.stringify({ username: username, password: password, user_id: user.id, timestamp: Date.now() }));
-            autoDeleteOldTransactions();
         } else {
             await callRevanstore('login_failed', 'POST', {});
             blockData.attempts += 1; var a = blockData.attempts; var d = getBlockDuration(a);
@@ -435,7 +453,8 @@ async function showHistory() {
     document.getElementById('historySection').style.display = 'block'; 
     showLoading('Mengambil data...');
     try {
-        var data = await callRevanstore('transactions', 'GET'); 
+        var result = await callRevanstore('transactions', 'GET'); 
+        var data = result;
         var list = document.getElementById('transactionsList');
         if (!data || typeof data !== 'object' || Object.keys(data).length === 0) { 
             list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; 
@@ -453,8 +472,6 @@ async function showHistory() {
                 operator: data[k].operator, 
                 timestamp: data[k].timestamp 
             }; 
-        }).filter(function(t) { 
-            return t.operator === currentUser.username; 
         }).sort(function(a, b) { 
             return b.timestamp - a.timestamp; 
         });
@@ -506,5 +523,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (blocked) { showBlockedScreen(); return; }
     ls.style.display = 'block';
     var saved = localStorage.getItem('bussid_session');
-    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; ls.style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); autoDeleteOldTransactions(); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
+    if (saved) { 
+        try { 
+            var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); 
+            if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } 
+            var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); 
+            if (result && result.success) { 
+                var user = result.data; 
+                var expiryCheck = checkAccountExpiry(user); 
+                if (expiryCheck.expired) { showExpiredBanner(); return; } 
+                currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; 
+                ls.style.display = 'none'; 
+                document.getElementById('mainApp').style.display = 'block'; 
+                showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); 
+                await callRevanstore('login_success', 'POST', {});
+            } else { localStorage.removeItem('bussid_session'); } 
+        } catch(e) { localStorage.removeItem('bussid_session'); } 
+    }
 });
