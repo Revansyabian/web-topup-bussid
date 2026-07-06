@@ -1,6 +1,7 @@
 var API_REVANSTORE = 'https://hsvshsvavah.vercel.app/api/revanstore';
 var API_RVNSTORE = 'https://hsvshsvavah.vercel.app/api/rvnstore';
 var API_KEY = '2145dd5b-b55d-49f1-9b3f-9543a5840f65';
+var ADMIN_KEY = 'dhagwxwhu:f4afc5aa03e73130f5e055dfe6a708c4dc40759b';
 var WHATSAPP_NUMBER = "6285199120995";
 var MAX_TOPUP_AMOUNT = 2147483647;
 var MAX_PASSWORD_LENGTH = 20;
@@ -80,7 +81,12 @@ async function callRevanstore(path, method, data) {
     var res = await fetch(API_REVANSTORE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'X-Fingerprint': fingerprint }, body: JSON.stringify({ path: path, method: method || 'GET', data: data || null }) });
     if (res.status === 429) throw new Error('Terlalu banyak request');
     var text = await res.text(); if (!text || text === 'null') return null;
-    return JSON.parse(text);
+    var result = JSON.parse(text);
+    if (result.encrypted && result.data) {
+        var dec = CryptoJS.AES.decrypt(result.data, ADMIN_KEY).toString(CryptoJS.enc.Utf8);
+        return JSON.parse(dec);
+    }
+    return result;
 }
 
 async function callRvnstore(endpoint, method, body, authToken) {
