@@ -279,6 +279,7 @@ async function deleteAllHistory() {
         showAlert('Gagal menghapus riwayat!', 'error'); 
     }
 }
+
 async function login() {
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return; }
@@ -328,7 +329,9 @@ function logout() {
     currentUser = null; currentAccount = null; currentAuthToken = null; lastDeviceId = null;
     document.getElementById('mainApp').style.display = 'none'; document.getElementById('expiredBanner').style.display = 'none';
     var ls = document.getElementById('loginScreen');
-    ls.style.display = 'block'; ls.style.position = 'fixed'; ls.style.top = '0'; ls.style.left = '0'; ls.style.width = '100%'; ls.style.height = '100%';
+    ls.style.display = 'flex';
+    ls.style.alignItems = 'center';
+    ls.style.justifyContent = 'center';
     document.getElementById('username').value = ''; document.getElementById('password').value = '';
     localStorage.removeItem('bussid_session'); showAlert('Logout!', 'success'); window.scrollTo(0, 0);
 }
@@ -479,11 +482,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners(); setupQuickAmounts();
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     document.addEventListener('keydown', function(e) { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) { e.preventDefault(); return false; } });
-    var ls = document.getElementById('loginScreen'); ls.style.position = 'fixed'; ls.style.top = '0'; ls.style.left = '0'; ls.style.width = '100%'; ls.style.height = '100%';
+    var ls = document.getElementById('loginScreen');
+    ls.style.display = 'flex';
+    ls.style.alignItems = 'center';
+    ls.style.justifyContent = 'center';
     if (!fingerprint) fingerprint = await getFingerprint();
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return; }
-    ls.style.display = 'block';
     var saved = localStorage.getItem('bussid_session');
     if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; ls.style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
 });
