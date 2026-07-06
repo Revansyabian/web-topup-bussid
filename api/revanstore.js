@@ -162,9 +162,6 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   
-  const apiKey = req.headers['x-api-key'];
-  if (!apiKey || apiKey !== process.env.API_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  
   const ip = req.headers['x-forwarded-for'] || 'unknown';
   const fp = req.headers['x-fingerprint'] || '';
   
@@ -179,20 +176,31 @@ export default async function handler(req, res) {
   if (!checkRateLimit(ip)) return res.status(429).json({ error: 'Terlalu banyak request. Coba lagi nanti.' });
 
   try {
-    const encryptedBody = req.body?.data;
-    if (!encryptedBody) return res.status(400).json({ error: 'Invalid request' });
+    let path, method, data, timestamp;
     
-    const decrypted = decryptPayload(encryptedBody);
-    if (!decrypted || !decrypted.path) return res.status(400).json({ error: 'Invalid payload' });
-    
-    const { path, method, data, timestamp } = decrypted;
-    
-    if (timestamp && Date.now() - timestamp > 30000) {
-      return res.status(400).json({ error: 'Request expired' });
+    if (req.body?.data && typeof req.body.data === 'string' && req.body.data.length > 50) {
+      const decrypted = decryptPayload(req.body.data);
+      if (!decrypted || !decrypted.path) return res.status(400).json({ error: 'Invalid payload' });
+      path = decrypted.path;
+      method = decrypted.method;
+      data = decrypted.data;
+      timestamp = decrypted.timestamp;
+      
+      if (timestamp && Date.now() - timestamp > 30000) {
+        return res.status(400).json({ error: 'Request expired' });
+      }
+    } else if (req.body?.path) {
+      const apiKey = req.headers['x-api-key'];
+      if (!apiKey || apiKey !== process.env.API_KEY) return res.status(401).json({ error: 'Unauthorized' });
+      path = req.body.path;
+      method = req.body.method;
+      data = req.body.data;
+    } else {
+      return res.status(400).json({ error: 'Invalid request' });
     }
     
-    if (!checkRequestDelay(ip, path)) return res.status(429).json({ error: 'Request terlalu cepat. Harap tunggu.' });
     if (!path || typeof path !== 'string' || path.length > 200) return res.status(400).json({ error: 'Invalid path' });
+    if (!checkRequestDelay(ip, path)) return res.status(429).json({ error: 'Request terlalu cepat. Harap tunggu.' });
     
     const ref = db.ref(path);
 
