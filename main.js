@@ -282,14 +282,11 @@ function updateProfileInfo() {
 
 function logout() {
     currentUser = null; currentAccount = null; currentAuthToken = null; lastDeviceId = null;
-    document.getElementById('mainApp').style.display = 'none'; 
-    document.getElementById('expiredBanner').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'block';
-    document.getElementById('username').value = ''; 
-    document.getElementById('password').value = '';
-    localStorage.removeItem('bussid_session'); 
-    showAlert('Logout!', 'success');
-    window.scrollTo(0, 0);
+    document.getElementById('mainApp').style.display = 'none'; document.getElementById('expiredBanner').style.display = 'none';
+    var ls = document.getElementById('loginScreen');
+    ls.style.display = 'block'; ls.style.position = 'fixed'; ls.style.top = '0'; ls.style.left = '0'; ls.style.width = '100%'; ls.style.height = '100%';
+    document.getElementById('username').value = ''; document.getElementById('password').value = '';
+    localStorage.removeItem('bussid_session'); showAlert('Logout!', 'success'); window.scrollTo(0, 0);
 }
 
 async function loginWithDeviceId(deviceId) {
@@ -392,7 +389,7 @@ async function addCashToAccount(amt) {
 function showReceipt(trx) {
     hideAllSections();
     var typeText = trx.type === 'topup' ? 'TOP UP' : 'KURAS', sign = trx.type === 'topup' ? '+' : '-';
-    document.getElementById('receiptContent').innerHTML = '<div class="receipt-content"><div class="receipt-header"><h3>BUS SIMULATOR ID</h3><p>Detail Transaksi</p></div><div class="receipt-details"><div class="receipt-row"><span>Akun:</span><span>' + sanitize(trx.accountName) + '</span></div><div class="receipt-row"><span>Jenis:</span><span>' + typeText + '</span></div><div class="receipt-row"><span>Jumlah:</span><span style="color:' + (trx.type === 'topup' ? '#10b981' : '#f59e0b') + '">' + sign + formatCurrency(trx.amount) + '</span></div><div class="receipt-row"><span>Saldo Awal:</span><span>' + formatCurrency(trx.oldBalance) + '</span></div><div class="receipt-row"><span>Saldo Akhir:</span><span>' + formatCurrency(trx.newBalance) + '</span></div><div class="receipt-row"><span>Tanggal:</span><span>' + new Date(trx.timestamp).toLocaleString('id-ID') + '</span></div><div class="receipt-row"><span>Status:</span><span style="color:#10b981;">BERHASIL</span></div></div></div><div style="display:flex;gap:8px;margin-top:20px;"><button class="btn btn-primary" onclick="window._showTrxModal()" style="flex:1;">TRX LAGI</button><button class="btn btn-secondary" onclick="window._goHome()" style="flex:1;">HOME</button></div>';
+    document.getElementById('receiptContent').innerHTML = '<div class="receipt-content"><div class="receipt-header"><h3>BUSSID</h3><p>Detail Transaksi</p></div><div class="receipt-details"><div class="receipt-row"><span>Akun:</span><span>' + sanitize(trx.accountName) + '</span></div><div class="receipt-row"><span>Jenis:</span><span>' + typeText + '</span></div><div class="receipt-row"><span>Jumlah:</span><span style="color:' + (trx.type === 'topup' ? '#10b981' : '#f59e0b') + '">' + sign + formatCurrency(trx.amount) + '</span></div><div class="receipt-row"><span>Saldo Awal:</span><span>' + formatCurrency(trx.oldBalance) + '</span></div><div class="receipt-row"><span>Saldo Akhir:</span><span>' + formatCurrency(trx.newBalance) + '</span></div><div class="receipt-row"><span>Tanggal:</span><span>' + new Date(trx.timestamp).toLocaleString('id-ID') + '</span></div><div class="receipt-row"><span>Status:</span><span style="color:#10b981;">BERHASIL</span></div></div></div><div style="display:flex;gap:8px;margin-top:20px;"><button class="btn btn-primary" onclick="window._showTrxModal()" style="flex:1;">TRX LAGI</button><button class="btn btn-secondary" onclick="window._goHome()" style="flex:1;">HOME</button></div>';
     document.getElementById('receiptSection').style.display = 'block';
 }
 
@@ -438,13 +435,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners(); setupQuickAmounts();
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     document.addEventListener('keydown', function(e) { if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) { e.preventDefault(); return false; } });
-    
+    var ls = document.getElementById('loginScreen'); ls.style.position = 'fixed'; ls.style.top = '0'; ls.style.left = '0'; ls.style.width = '100%'; ls.style.height = '100%';
     if (!fingerprint) fingerprint = await getFingerprint();
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return; }
-    
-    document.getElementById('loginScreen').style.display = 'block';
-    
+    ls.style.display = 'block';
     var saved = localStorage.getItem('bussid_session');
-    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; document.getElementById('loginScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
+    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; ls.style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
 });
