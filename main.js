@@ -226,12 +226,42 @@ async function deleteAllHistory() {
     showLoading('Menghapus...');
     try {
         var transactions = await callRevanstore('transactions', 'GET');
-        if (!transactions || typeof transactions !== 'object') { hideLoading(); showAlert('Tidak ada riwayat!', 'warning'); return; }
+        if (!transactions || typeof transactions !== 'object' || Object.keys(transactions).length === 0) { 
+            hideLoading(); 
+            showAlert('Tidak ada riwayat!', 'warning'); 
+            return; 
+        }
         var count = 0;
-        for (var key in transactions) { if (transactions[key] && transactions[key].operator === currentUser.username) { await callRevanstore('transactions/' + key, 'DELETE'); count++; } }
-        hideLoading(); showAlert(count + ' riwayat dihapus!', 'success');
+        var deletePromises = [];
+        for (var key in transactions) { 
+            if (transactions[key] && transactions[key].operator === currentUser.username) { 
+                deletePromises.push(callRevanstore('transactions/' + key, 'DELETE'));
+                count++; 
+            } 
+        }
+        await Promise.all(deletePromises);
+        hideLoading(); 
+        showAlert(count + ' riwayat dihapus!', 'success');
         if (document.getElementById('historySection').style.display === 'block') { showHistory(); }
-    } catch (error) { hideLoading(); showAlert('Gagal!', 'error'); }
+    } catch (error) { 
+        hideLoading(); 
+        showAlert('Gagal menghapus riwayat!', 'error'); 
+    }
+}
+
+async function autoDeleteOldTransactions() {
+    try {
+        var transactions = await callRevanstore('transactions', 'GET');
+        if (!transactions || typeof transactions !== 'object') return;
+        var twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000);
+        var deletePromises = [];
+        for (var key in transactions) {
+            if (transactions[key] && transactions[key].timestamp && transactions[key].timestamp < twoDaysAgo) {
+                deletePromises.push(callRevanstore('transactions/' + key, 'DELETE'));
+            }
+        }
+        await Promise.all(deletePromises);
+    } catch(e) {}
 }
 
 async function login() {
@@ -257,6 +287,7 @@ async function login() {
             document.getElementById('mainApp').style.display = 'block';
             hideLoading(); showHome(); showAlert('Login berhasil!', 'success'); updateProfileInfo();
             localStorage.setItem('bussid_session', JSON.stringify({ username: username, password: password, user_id: user.id, timestamp: Date.now() }));
+            autoDeleteOldTransactions();
         } else {
             await callRevanstore('login_failed', 'POST', {});
             blockData.attempts += 1; var a = blockData.attempts; var d = getBlockDuration(a);
@@ -264,7 +295,7 @@ async function login() {
             if (d > 0) { blockData.blockedUntil = Date.now() + d * 60 * 1000; saveBlockData(username, blockData); showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); }
             else { saveBlockData(username, blockData); showAlert('Username atau password salah!', 'error'); }
         }
-    } catch (error) { hideLoading(); showAlert('Gagal menghubungi server!', 'error'); }
+    } catch (error) { hideLoading(); showAlert('Gagal menghubungkan ke server!', 'error'); }
 }
 
 function updateProfileInfo() {
@@ -400,15 +431,50 @@ window._goHome = function() { showHome(); };
 function backToHome() { showHome(); }
 
 async function showHistory() {
-    hideAllSections(); document.getElementById('historySection').style.display = 'block'; showLoading('Mengambil data...');
+    hideAllSections(); 
+    document.getElementById('historySection').style.display = 'block'; 
+    showLoading('Mengambil data...');
     try {
-        var data = await callRevanstore('transactions', 'GET'); var list = document.getElementById('transactionsList');
-        if (!data || typeof data !== 'object') { list.innerHTML = '<p style="text-align:center;color:#666;">Belum ada transaksi</p>'; hideLoading(); return; }
-        var arr = Object.keys(data).map(function(k) { return { id: k, type: data[k].type, accountName: data[k].accountName, amount: data[k].amount, oldBalance: data[k].oldBalance, newBalance: data[k].newBalance, operator: data[k].operator, timestamp: data[k].timestamp }; }).filter(function(t) { return t.operator === currentUser.username; }).sort(function(a, b) { return b.timestamp - a.timestamp; });
-        if (arr.length === 0) { list.innerHTML = '<p style="text-align:center;color:#666;">Belum ada transaksi</p>'; hideLoading(); return; }
-        var html = ''; arr.forEach(function(t) { var typeText = t.type === 'topup' ? 'TOP UP' : 'KURAS', sign = t.type === 'topup' ? '+' : '-'; html += '<div class="transaction-item ' + t.type + '"><div class="transaction-header"><div>' + sanitize(t.accountName) + '</div><div class="transaction-amount">' + sign + formatCurrency(t.amount) + '</div></div><div class="transaction-details"><div>' + typeText + '</div><div>' + new Date(t.timestamp).toLocaleString('id-ID') + '</div></div><div class="transaction-balance"><span>Sebelum: ' + formatCurrency(t.oldBalance) + '</span><span>→</span><span>Sesudah: ' + formatCurrency(t.newBalance) + '</span></div></div>'; });
-        list.innerHTML = html; hideLoading();
-    } catch(e) { hideLoading(); showAlert('Gagal!', 'error'); }
+        var data = await callRevanstore('transactions', 'GET'); 
+        var list = document.getElementById('transactionsList');
+        if (!data || typeof data !== 'object' || Object.keys(data).length === 0) { 
+            list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; 
+            hideLoading(); 
+            return; 
+        }
+        var arr = Object.keys(data).map(function(k) { 
+            return { 
+                id: k, 
+                type: data[k].type, 
+                accountName: data[k].accountName, 
+                amount: data[k].amount, 
+                oldBalance: data[k].oldBalance, 
+                newBalance: data[k].newBalance, 
+                operator: data[k].operator, 
+                timestamp: data[k].timestamp 
+            }; 
+        }).filter(function(t) { 
+            return t.operator === currentUser.username; 
+        }).sort(function(a, b) { 
+            return b.timestamp - a.timestamp; 
+        });
+        if (arr.length === 0) { 
+            list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; 
+            hideLoading(); 
+            return; 
+        }
+        var html = ''; 
+        arr.forEach(function(t) { 
+            var typeText = t.type === 'topup' ? 'TOP UP' : t.type === 'kuras' ? 'KURAS' : 'GANTI NAMA'; 
+            var sign = t.type === 'topup' ? '+' : t.type === 'kuras' ? '-' : ''; 
+            html += '<div class="transaction-item ' + t.type + '"><div class="transaction-header"><div>' + sanitize(t.accountName) + '</div><div class="transaction-amount">' + sign + formatCurrency(t.amount) + '</div></div><div class="transaction-details"><div>' + typeText + '</div><div>' + new Date(t.timestamp).toLocaleString('id-ID') + '</div></div><div class="transaction-balance"><span>Sebelum: ' + formatCurrency(t.oldBalance) + '</span><span>→</span><span>Sesudah: ' + formatCurrency(t.newBalance) + '</span></div></div>'; 
+        });
+        list.innerHTML = html; 
+        hideLoading();
+    } catch(e) { 
+        hideLoading(); 
+        showAlert('Gagal memuat riwayat!', 'error'); 
+    }
 }
 
 function showSettings() { hideAllSections(); document.getElementById('settingsSection').style.display = 'block'; updateProfileInfo(); }
@@ -440,5 +506,5 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (blocked) { showBlockedScreen(); return; }
     ls.style.display = 'block';
     var saved = localStorage.getItem('bussid_session');
-    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; ls.style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
+    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; ls.style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); autoDeleteOldTransactions(); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
 });
