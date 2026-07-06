@@ -1,5 +1,6 @@
 var API_REVANSTORE = '/api/revanstore';
 var API_RVNSTORE = '/api/rvnstore';
+var API_KEY = '2145dd5b-b55d-49f1-9b3f-9543a5840f65';
 var ADMIN_KEY = 'dhagwxwhu:f4afc5aa03e73130f5e055dfe6a708c4dc40759b';
 var WHATSAPP_NUMBER = "6285199120995";
 var MAX_TOPUP_AMOUNT = 2147483647;
@@ -258,8 +259,7 @@ function closeDeleteHistoryModal() { var overlay = document.getElementById('conf
 async function deleteAllHistory() {
     showLoading('Menghapus...');
     try {
-        var result = await callRevanstore('transactions', 'GET');
-        var transactions = result;
+        var transactions = await callRevanstore('transactions', 'GET');
         if (!transactions || typeof transactions !== 'object' || Object.keys(transactions).length === 0) { 
             hideLoading(); 
             showAlert('Tidak ada riwayat!', 'warning'); 
@@ -268,10 +268,8 @@ async function deleteAllHistory() {
         var count = 0;
         var deletePromises = [];
         for (var key in transactions) { 
-            if (transactions[key] && transactions[key].operator === currentUser.username) { 
-                deletePromises.push(callRevanstore('transactions/' + key, 'DELETE'));
-                count++; 
-            } 
+            deletePromises.push(callRevanstore('transactions/' + key, 'DELETE'));
+            count++; 
         }
         await Promise.all(deletePromises);
         hideLoading(); 
@@ -290,7 +288,7 @@ async function login() {
     var password = document.getElementById('password').value.trim();
     if (!username || !password) { showAlert('Harap isi username dan password!', 'warning'); return; }
     var blockData = getBlockData(username);
-    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) { showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); return; }
+    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) { showAlert('Terlalu banyak percobaan! Akses ditolak.', 'error'); return; }
     showLoading('Login...');
     try {
         var result = await callRevanstore('login', 'POST', { username: username, password: password });
@@ -310,7 +308,7 @@ async function login() {
             await callRevanstore('login_failed', 'POST', {});
             blockData.attempts += 1; var a = blockData.attempts; var d = getBlockDuration(a);
             hideLoading();
-            if (d > 0) { blockData.blockedUntil = Date.now() + d * 60 * 1000; saveBlockData(username, blockData); showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); }
+            if (d > 0) { blockData.blockedUntil = Date.now() + d * 60 * 1000; saveBlockData(username, blockData); showAlert('Terlalu banyak percobaan! Akses ditolak.', 'error'); }
             else { saveBlockData(username, blockData); showAlert('Username atau password salah!', 'error'); }
         }
     } catch (error) { hideLoading(); showAlert('Gagal menghubungkan ke server!', 'error'); }
@@ -386,12 +384,12 @@ function tampilkanFotoProfile(acc) {
 function tampilkanInfoFacebook(fb) {
     var d = document.getElementById('facebookDetails'); if (!d) return;
     if (fb && fb.isConnected && fb.id) {
-        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#1877F2;">✅ TERHUBUNG</span></div>' +
+        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#1877F2;">TERHUBUNG</span></div>' +
             '<div class="fb-info-row"><span class="fb-info-label">Facebook ID:</span><span class="fb-info-value" style="font-family:monospace;font-size:12px;">' + sanitize(fb.id) + '</span></div>' +
             '<div class="fb-info-row"><span class="fb-info-label">Nama:</span><span class="fb-info-value">' + sanitize(fb.name || '-') + '</span></div>' +
             '<div class="fb-info-row"><span class="fb-info-label">Email:</span><span class="fb-info-value">' + sanitize(fb.email || '-') + '</span></div>';
     } else {
-        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#ffaa00;">⚠️ TIDAK TERHUBUNG</span></div>';
+        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#ffaa00;">TIDAK TERHUBUNG</span></div>';
     }
 }
 
@@ -453,8 +451,7 @@ async function showHistory() {
     document.getElementById('historySection').style.display = 'block'; 
     showLoading('Mengambil data...');
     try {
-        var result = await callRevanstore('transactions', 'GET'); 
-        var data = result;
+        var data = await callRevanstore('transactions', 'GET'); 
         var list = document.getElementById('transactionsList');
         if (!data || typeof data !== 'object' || Object.keys(data).length === 0) { 
             list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; 
@@ -499,7 +496,7 @@ function showConfirm(title, message, action, data) { document.getElementById('mo
 function cancelConfirm() { pendingAction = null; pendingData = null; document.getElementById('confirmModal').classList.remove('active'); }
 
 async function confirmAction() { if (!pendingAction || !pendingData) return; document.getElementById('confirmModal').classList.remove('active'); if (pendingAction === 'topup') await executeTopup(pendingData.amount); else if (pendingAction === 'kuras') await executeKuras(pendingData.amount); else if (pendingAction === 'changename') await executeChangeName(pendingData); pendingAction = null; pendingData = null; }
-async function checkNameAvailability() { var d = document.getElementById('nameAvailability'); d.innerHTML = 'Mengecek...'; d.style.display = 'block'; setTimeout(function() { d.innerHTML = '✅ Tersedia!'; }, 1000); }
+async function checkNameAvailability() { var d = document.getElementById('nameAvailability'); d.innerHTML = 'Mengecek...'; d.style.display = 'block'; setTimeout(function() { d.innerHTML = 'Tersedia!'; }, 1000); }
 async function changeAccountNameSimple() { var name = sanitize(document.getElementById('newAccountName').value.trim()); if (!name) { showAlert('Masukkan nama!', 'error'); return; } if (!currentAccount || !currentAuthToken) { showAlert('Cari akun dulu!', 'error'); return; } showConfirm('GANTI NAMA', 'Ganti ke "' + name + '"?', 'changename', name); }
 
 async function executeChangeName(newName) {
