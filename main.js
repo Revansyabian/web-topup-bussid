@@ -287,7 +287,7 @@ async function login() {
     var password = document.getElementById('password').value.trim();
     if (!username || !password) { showAlert('Harap isi username dan password!', 'warning'); return; }
     var blockData = getBlockData(username);
-    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) { showAlert('Terlalu banyak percobaan! Akses ditolak.', 'error'); return; }
+    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) { showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); return; }
     showLoading('Login...');
     try {
         var result = await callRevanstore('login', 'POST', { username: username, password: password });
@@ -307,7 +307,7 @@ async function login() {
             await callRevanstore('login_failed', 'POST', {});
             blockData.attempts += 1; var a = blockData.attempts; var d = getBlockDuration(a);
             hideLoading();
-            if (d > 0) { blockData.blockedUntil = Date.now() + d * 60 * 1000; saveBlockData(username, blockData); showAlert('Terlalu banyak percobaan! Akses ditolak.', 'error'); }
+            if (d > 0) { blockData.blockedUntil = Date.now() + d * 60 * 1000; saveBlockData(username, blockData); showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); }
             else { saveBlockData(username, blockData); showAlert('Username atau password salah!', 'error'); }
         }
     } catch (error) { hideLoading(); showAlert('Gagal menghubungkan ke server!', 'error'); }
@@ -383,12 +383,12 @@ function tampilkanFotoProfile(acc) {
 function tampilkanInfoFacebook(fb) {
     var d = document.getElementById('facebookDetails'); if (!d) return;
     if (fb && fb.isConnected && fb.id) {
-        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#1877F2;">TERHUBUNG</span></div>' +
+        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#1877F2;">✅ TERHUBUNG</span></div>' +
             '<div class="fb-info-row"><span class="fb-info-label">Facebook ID:</span><span class="fb-info-value" style="font-family:monospace;font-size:12px;">' + sanitize(fb.id) + '</span></div>' +
             '<div class="fb-info-row"><span class="fb-info-label">Nama:</span><span class="fb-info-value">' + sanitize(fb.name || '-') + '</span></div>' +
             '<div class="fb-info-row"><span class="fb-info-label">Email:</span><span class="fb-info-value">' + sanitize(fb.email || '-') + '</span></div>';
     } else {
-        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#ffaa00;">TIDAK TERHUBUNG</span></div>';
+        d.innerHTML = '<div class="fb-info-row"><span class="fb-info-label"><i class="fab fa-facebook"></i> Status:</span><span class="fb-info-value" style="color:#ffaa00;">⚠️ TIDAK TERHUBUNG</span></div>';
     }
 }
 
@@ -446,48 +446,15 @@ window._goHome = function() { showHome(); };
 function backToHome() { showHome(); }
 
 async function showHistory() {
-    hideAllSections(); 
-    document.getElementById('historySection').style.display = 'block'; 
-    showLoading('Mengambil data...');
+    hideAllSections(); document.getElementById('historySection').style.display = 'block'; showLoading('Mengambil data...');
     try {
-        var data = await callRevanstore('transactions', 'GET'); 
-        var list = document.getElementById('transactionsList');
-        if (!data || typeof data !== 'object' || Object.keys(data).length === 0) { 
-            list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; 
-            hideLoading(); 
-            return; 
-        }
-        var arr = Object.keys(data).map(function(k) { 
-            return { 
-                id: k, 
-                type: data[k].type, 
-                accountName: data[k].accountName, 
-                amount: data[k].amount, 
-                oldBalance: data[k].oldBalance, 
-                newBalance: data[k].newBalance, 
-                operator: data[k].operator, 
-                timestamp: data[k].timestamp 
-            }; 
-        }).sort(function(a, b) { 
-            return b.timestamp - a.timestamp; 
-        });
-        if (arr.length === 0) { 
-            list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; 
-            hideLoading(); 
-            return; 
-        }
-        var html = ''; 
-        arr.forEach(function(t) { 
-            var typeText = t.type === 'topup' ? 'TOP UP' : t.type === 'kuras' ? 'KURAS' : 'GANTI NAMA'; 
-            var sign = t.type === 'topup' ? '+' : t.type === 'kuras' ? '-' : ''; 
-            html += '<div class="transaction-item ' + t.type + '"><div class="transaction-header"><div>' + sanitize(t.accountName) + '</div><div class="transaction-amount">' + sign + formatCurrency(t.amount) + '</div></div><div class="transaction-details"><div>' + typeText + '</div><div>' + new Date(t.timestamp).toLocaleString('id-ID') + '</div></div><div class="transaction-balance"><span>Sebelum: ' + formatCurrency(t.oldBalance) + '</span><span>→</span><span>Sesudah: ' + formatCurrency(t.newBalance) + '</span></div></div>'; 
-        });
-        list.innerHTML = html; 
-        hideLoading();
-    } catch(e) { 
-        hideLoading(); 
-        showAlert('Gagal memuat riwayat!', 'error'); 
-    }
+        var data = await callRevanstore('transactions', 'GET'); var list = document.getElementById('transactionsList');
+        if (!data || typeof data !== 'object' || Object.keys(data).length === 0) { list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; hideLoading(); return; }
+        var arr = Object.keys(data).map(function(k) { return { id: k, type: data[k].type, accountName: data[k].accountName, amount: data[k].amount, oldBalance: data[k].oldBalance, newBalance: data[k].newBalance, operator: data[k].operator, timestamp: data[k].timestamp }; }).sort(function(a, b) { return b.timestamp - a.timestamp; });
+        if (arr.length === 0) { list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;">Belum ada transaksi</p>'; hideLoading(); return; }
+        var html = ''; arr.forEach(function(t) { var typeText = t.type === 'topup' ? 'TOP UP' : t.type === 'kuras' ? 'KURAS' : 'GANTI NAMA'; var sign = t.type === 'topup' ? '+' : t.type === 'kuras' ? '-' : ''; html += '<div class="transaction-item ' + t.type + '"><div class="transaction-header"><div>' + sanitize(t.accountName) + '</div><div class="transaction-amount">' + sign + formatCurrency(t.amount) + '</div></div><div class="transaction-details"><div>' + typeText + '</div><div>' + new Date(t.timestamp).toLocaleString('id-ID') + '</div></div><div class="transaction-balance"><span>Sebelum: ' + formatCurrency(t.oldBalance) + '</span><span>→</span><span>Sesudah: ' + formatCurrency(t.newBalance) + '</span></div></div>'; });
+        list.innerHTML = html; hideLoading();
+    } catch(e) { hideLoading(); showAlert('Gagal!', 'error'); }
 }
 
 function showSettings() { hideAllSections(); document.getElementById('settingsSection').style.display = 'block'; updateProfileInfo(); }
@@ -495,7 +462,7 @@ function showConfirm(title, message, action, data) { document.getElementById('mo
 function cancelConfirm() { pendingAction = null; pendingData = null; document.getElementById('confirmModal').classList.remove('active'); }
 
 async function confirmAction() { if (!pendingAction || !pendingData) return; document.getElementById('confirmModal').classList.remove('active'); if (pendingAction === 'topup') await executeTopup(pendingData.amount); else if (pendingAction === 'kuras') await executeKuras(pendingData.amount); else if (pendingAction === 'changename') await executeChangeName(pendingData); pendingAction = null; pendingData = null; }
-async function checkNameAvailability() { var d = document.getElementById('nameAvailability'); d.innerHTML = 'Mengecek...'; d.style.display = 'block'; setTimeout(function() { d.innerHTML = 'Tersedia!'; }, 1000); }
+async function checkNameAvailability() { var d = document.getElementById('nameAvailability'); d.innerHTML = 'Mengecek...'; d.style.display = 'block'; setTimeout(function() { d.innerHTML = '✅ Tersedia!'; }, 1000); }
 async function changeAccountNameSimple() { var name = sanitize(document.getElementById('newAccountName').value.trim()); if (!name) { showAlert('Masukkan nama!', 'error'); return; } if (!currentAccount || !currentAuthToken) { showAlert('Cari akun dulu!', 'error'); return; } showConfirm('GANTI NAMA', 'Ganti ke "' + name + '"?', 'changename', name); }
 
 async function executeChangeName(newName) {
@@ -519,21 +486,5 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (blocked) { showBlockedScreen(); return; }
     ls.style.display = 'block';
     var saved = localStorage.getItem('bussid_session');
-    if (saved) { 
-        try { 
-            var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); 
-            if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } 
-            var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); 
-            if (result && result.success) { 
-                var user = result.data; 
-                var expiryCheck = checkAccountExpiry(user); 
-                if (expiryCheck.expired) { showExpiredBanner(); return; } 
-                currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; 
-                ls.style.display = 'none'; 
-                document.getElementById('mainApp').style.display = 'block'; 
-                showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); 
-                await callRevanstore('login_success', 'POST', {});
-            } else { localStorage.removeItem('bussid_session'); } 
-        } catch(e) { localStorage.removeItem('bussid_session'); } 
-    }
+    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; ls.style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
 });
