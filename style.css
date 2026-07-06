@@ -11,9 +11,9 @@ body{background:#f0f4f8;min-height:100vh;color:#1a1a2e}
 .alert-content{display:flex;align-items:center;gap:10px}
 .alert-icon{font-size:20px}
 
-#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0c4a6e 0%,#0ea5e9 50%,#38bdf8 100%);position:fixed;top:0;left:0;width:100%;z-index:10}
+#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#e0f2fe 0%,#bae6fd 50%,#7dd3fc 100%);position:fixed;top:0;left:0;width:100%;z-index:10}
 .login-container{width:100%;max-width:420px}
-.login-card{background:#fff;border-radius:24px;padding:45px 35px 35px;box-shadow:0 25px 60px rgba(0,0,0,0.15);animation:fadeIn 0.4s ease;margin:auto}
+.login-card{background:#fff;border-radius:24px;padding:45px 35px 35px;box-shadow:0 25px 60px rgba(0,0,0,0.08);animation:fadeIn 0.4s ease;margin:auto}
 @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .login-header{text-align:center;margin-bottom:32px}
 .login-header h1{color:#0c4a6e;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:12px}
