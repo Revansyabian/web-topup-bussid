@@ -38,12 +38,26 @@ function checkRequestDelay(ip, path) {
   return true;
 }
 
+function encryptResponse(data) {
+  const encrypted = CryptoJS.AES.encrypt(JSON.stringify(data), ADMIN_KEY).toString();
+  return { encrypted: true, data: encrypted };
+}
+
+function decryptPayload(encryptedData) {
+  try {
+    const dec = CryptoJS.AES.decrypt(encryptedData, ADMIN_KEY).toString(CryptoJS.enc.Utf8);
+    return JSON.parse(dec);
+  } catch(e) {
+    return null;
+  }
+}
+
 async function decryptData(raw) {
   if (!raw) return raw;
   if (raw.data) {
     try {
       const dec = CryptoJS.AES.decrypt(raw.data, ADMIN_KEY).toString(CryptoJS.enc.Utf8);
-      return { ...raw, ...JSON.parse(dec) };
+      return JSON.parse(dec);
     } catch(e) { return raw; }
   }
   return raw;
@@ -62,6 +76,7 @@ async function isIPBlocked(ip) {
 }
 
 async function isFPBlocked(fp) {
+  if (!fp) return false;
   const snap = await db.ref('blocked_fp/' + fp).once('value');
   const raw = snap.val();
   if (raw?.data) {
@@ -79,6 +94,7 @@ async function blockIP(ip) {
 }
 
 async function blockFP(fp) {
+  if (!fp) return;
   const enc = CryptoJS.AES.encrypt(JSON.stringify({ fingerprint: fp, blocked: true, blocked_at: new Date().toISOString() }), ADMIN_KEY).toString();
   await db.ref('blocked_fp/' + fp).set({ data: enc });
 }
@@ -89,46 +105,45 @@ async function trackLoginAttempt(ip, fp) {
   const snap = await ref.once('value');
   const raw = snap.val();
   const now = Date.now();
-  let attempts = 0, lastAttempt = 0;
   
   if (raw?.data) {
     try {
       const data = JSON.parse(CryptoJS.AES.decrypt(raw.data, ADMIN_KEY).toString(CryptoJS.enc.Utf8));
-      attempts = data.count || 0;
-      lastAttempt = data.last_attempt || 0;
-      
-      if (now - lastAttempt > 3600000) {
+      if (now - (data.last_attempt || 0) > 3600000) {
         await ref.remove();
         const enc = CryptoJS.AES.encrypt(JSON.stringify({ count: 1, last_attempt: now, fingerprint: fp }), ADMIN_KEY).toString();
         await ref.set({ data: enc });
         return 1;
       }
+      const newCount = (data.count || 0) + 1;
+      const enc = CryptoJS.AES.encrypt(JSON.stringify({ count: newCount, last_attempt: now, fingerprint: fp }), ADMIN_KEY).toString();
+      await ref.set({ data: enc });
+      return newCount;
     } catch(e) {}
   }
   
-  const newCount = attempts + 1;
-  const enc = CryptoJS.AES.encrypt(JSON.stringify({ count: newCount, last_attempt: now, fingerprint: fp }), ADMIN_KEY).toString();
+  const enc = CryptoJS.AES.encrypt(JSON.stringify({ count: 1, last_attempt: now, fingerprint: fp }), ADMIN_KEY).toString();
   await ref.set({ data: enc });
-  return newCount;
+  return 1;
 }
 
 async function resetLoginAttempt(ip, fp) {
   await db.ref('login_attempts/' + ip.replace(/\./g, '_') + '_' + (fp || 'nofp')).remove();
 }
 
-async function cleanupOldAttempts() {
-  const snap = await db.ref('login_attempts').once('value');
-  const data = snap.val();
-  if (!data) return;
-  const now = Date.now();
-  for (const key in data) {
-    if (data[key]?.data) {
-      try {
-        const parsed = JSON.parse(CryptoJS.AES.decrypt(data[key].data, ADMIN_KEY).toString(CryptoJS.enc.Utf8));
-        if (now - (parsed.last_attempt || 0) > 86400000) await db.ref('login_attempts/' + key).remove();
-      } catch(e) {}
+async function autoDeleteOldTransactions(operator) {
+  try {
+    const snap = await db.ref('transactions').once('value');
+    const raw = snap.val();
+    if (!raw) return;
+    const twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000);
+    for (const key in raw) {
+      const decrypted = await decryptData(raw[key]);
+      if (decrypted && decrypted.operator === operator && decrypted.timestamp && decrypted.timestamp < twoDaysAgo) {
+        await db.ref('transactions/' + key).remove();
+      }
     }
-  }
+  } catch(e) {}
 }
 
 export default async function handler(req, res) {
@@ -139,7 +154,7 @@ export default async function handler(req, res) {
   else if (allowedOrigins.includes('*')) res.setHeader('Access-Control-Allow-Origin', '*');
   
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key, X-Fingerprint');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key, X-Fingerprint, X-Operator');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -153,10 +168,28 @@ export default async function handler(req, res) {
   const ip = req.headers['x-forwarded-for'] || 'unknown';
   const fp = req.headers['x-fingerprint'] || '';
   
+  let operator = '';
+  try {
+    const encryptedOperator = req.headers['x-operator'] || '';
+    if (encryptedOperator) {
+      operator = CryptoJS.AES.decrypt(encryptedOperator, ADMIN_KEY).toString(CryptoJS.enc.Utf8);
+    }
+  } catch(e) {}
+  
   if (!checkRateLimit(ip)) return res.status(429).json({ error: 'Terlalu banyak request. Coba lagi nanti.' });
 
   try {
-    const { path, method, data } = req.body;
+    const encryptedBody = req.body?.data;
+    if (!encryptedBody) return res.status(400).json({ error: 'Invalid request' });
+    
+    const decrypted = decryptPayload(encryptedBody);
+    if (!decrypted || !decrypted.path) return res.status(400).json({ error: 'Invalid payload' });
+    
+    const { path, method, data, timestamp } = decrypted;
+    
+    if (timestamp && Date.now() - timestamp > 30000) {
+      return res.status(400).json({ error: 'Request expired' });
+    }
     
     if (!checkRequestDelay(ip, path)) return res.status(429).json({ error: 'Request terlalu cepat. Harap tunggu.' });
     if (!path || typeof path !== 'string' || path.length > 200) return res.status(400).json({ error: 'Invalid path' });
@@ -173,10 +206,21 @@ export default async function handler(req, res) {
       if (await isIPBlocked(ip) || (fp && await isFPBlocked(fp))) return res.status(200).json({ blocked: true });
       const snap = await db.ref('users').once('value');
       const users = snap.val();
+      if (!users) return res.status(200).json({ success: false });
+      
       for (const key in users) {
-        const decryptedUser = await decryptData({ ...users[key], id: key });
-        if (decryptedUser.username === data.username && decryptedUser.password === data.password) {
-          return res.status(200).json({ success: true, data: { id: key, username: decryptedUser.username, role: decryptedUser.role || 'User', full_name: decryptedUser.full_name || '', expiry_date: decryptedUser.expiry_date || '' } });
+        const decryptedUser = await decryptData(users[key]);
+        if (decryptedUser && decryptedUser.username === data.username && decryptedUser.password === data.password) {
+          return res.status(200).json({ 
+            success: true, 
+            data: { 
+              id: key, 
+              username: decryptedUser.username, 
+              role: decryptedUser.role || 'Operator', 
+              full_name: decryptedUser.full_name || '', 
+              expiry_date: decryptedUser.expiry_date || '' 
+            } 
+          });
         }
       }
       return res.status(200).json({ success: false });
@@ -184,17 +228,77 @@ export default async function handler(req, res) {
 
     if (path === 'login_failed' && method === 'POST') {
       const attempts = await trackLoginAttempt(ip, fp);
-      await new Promise(r => setTimeout(r, attempts * 500));
-      if (attempts >= 5) { await blockIP(ip); if (fp) await blockFP(fp); return res.status(200).json({ blocked: true }); }
-      return res.status(200).json({ attempts });
+      await new Promise(r => setTimeout(r, Math.min(attempts * 500, 3000)));
+      if (attempts >= 5) { 
+        await blockIP(ip); 
+        if (fp) await blockFP(fp); 
+        return res.status(200).json({ blocked: true }); 
+      }
+      return res.status(200).json(encryptResponse({ attempts, remaining: 5 - attempts }));
     }
 
-    if (path === 'login_success' && method === 'POST') { await resetLoginAttempt(ip, fp); return res.status(200).json({ success: true }); }
-    if (method === 'GET') { const snap = await ref.once('value'); const raw = snap.val(); const result = {}; if (raw) for (const key in raw) { const d = await decryptData({ ...raw[key], id: key }); result[key] = d; result[key].id = key; } return res.status(200).json(result); }
-    if (method === 'POST') { const r = ref.push(); await r.set(data); return res.status(200).json({ success: true, id: r.key }); }
-    if (method === 'PUT') { await ref.set(data); return res.status(200).json({ success: true }); }
-    if (method === 'PATCH') { await ref.update(data); return res.status(200).json({ success: true }); }
-    if (method === 'DELETE') { await ref.remove(); return res.status(200).json({ success: true }); }
+    if (path === 'login_success' && method === 'POST') { 
+      await resetLoginAttempt(ip, fp); 
+      if (operator) await autoDeleteOldTransactions(operator);
+      return res.status(200).json(encryptResponse({ success: true })); 
+    }
+
+    if (path === 'transactions' && method === 'GET') { 
+      const snap = await ref.once('value'); 
+      const raw = snap.val(); 
+      const result = {}; 
+      if (raw) {
+        for (const key in raw) { 
+          const d = await decryptData(raw[key]); 
+          if (d && d.operator === operator) {
+            result[key] = d; 
+          }
+        } 
+      }
+      return res.status(200).json(encryptResponse(result)); 
+    }
+
+    if (method === 'GET') { 
+      const snap = await ref.once('value'); 
+      const raw = snap.val(); 
+      const result = {}; 
+      if (raw) {
+        for (const key in raw) { 
+          const d = await decryptData(raw[key]); 
+          if (d) {
+            result[key] = d; 
+          }
+        } 
+      }
+      return res.status(200).json(encryptResponse(result)); 
+    }
+
+    if (method === 'POST') { 
+      const enc = CryptoJS.AES.encrypt(JSON.stringify(data), ADMIN_KEY).toString();
+      const r = ref.push(); 
+      await r.set({ data: enc }); 
+      return res.status(200).json(encryptResponse({ success: true, id: r.key })); 
+    }
+    
+    if (method === 'PUT') { 
+      const enc = CryptoJS.AES.encrypt(JSON.stringify(data), ADMIN_KEY).toString();
+      await ref.set({ data: enc }); 
+      return res.status(200).json(encryptResponse({ success: true })); 
+    }
+    
+    if (method === 'PATCH') { 
+      const snap = await ref.once('value');
+      const existing = await decryptData(snap.val());
+      const merged = Object.assign({}, existing || {}, data);
+      const enc = CryptoJS.AES.encrypt(JSON.stringify(merged), ADMIN_KEY).toString();
+      await ref.update({ data: enc }); 
+      return res.status(200).json(encryptResponse({ success: true })); 
+    }
+    
+    if (method === 'DELETE') { 
+      await ref.remove(); 
+      return res.status(200).json(encryptResponse({ success: true })); 
+    }
 
     return res.status(400).json({ error: 'Invalid method' });
   } catch (error) {
