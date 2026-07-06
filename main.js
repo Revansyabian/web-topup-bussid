@@ -3,7 +3,7 @@ var API_RVNSTORE = '/api/rvnstore';
 var ADMIN_KEY = 'dhagwxwhu:f4afc5aa03e73130f5e055dfe6a708c4dc40759b';
 var WHATSAPP_NUMBER = "6285199120995";
 var MAX_TOPUP_AMOUNT = 2147483647;
-var MAX_PASSWORD_LENGTH = 20;
+var MAX_PASSWORD_LENGTH = 23;
 
 var currentUser = null;
 var currentAccount = null;
