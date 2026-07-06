@@ -1,5 +1,5 @@
 var API_REVANSTORE = 'https://hsvshsvavah.vercel.app/api/revanstore';
-var API_RVNSTORE = 'https://hsvshsvavah.vercel.app/api/rvnstore';
+var API_RVNSTORE = 'api/rvnstore';
 var API_KEY = '2145dd5b-b55d-49f1-9b3f-9543a5840f65';
 var ADMIN_KEY = 'dhagwxwhu:f4afc5aa03e73130f5e055dfe6a708c4dc40759b';
 var WHATSAPP_NUMBER = "6285199120995";
