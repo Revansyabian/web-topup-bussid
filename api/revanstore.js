@@ -176,22 +176,15 @@ export default async function handler(req, res) {
   if (!checkRateLimit(ip)) return res.status(429).json({ error: 'Terlalu banyak request. Coba lagi nanti.' });
 
   try {
-    let path, method, data, timestamp;
+    let path, method, data;
     
-    if (req.body?.data && typeof req.body.data === 'string' && req.body.data.length > 50) {
+    if (req.body?.data && typeof req.body.data === 'string') {
       const decrypted = decryptPayload(req.body.data);
       if (!decrypted || !decrypted.path) return res.status(400).json({ error: 'Invalid payload' });
       path = decrypted.path;
       method = decrypted.method;
       data = decrypted.data;
-      timestamp = decrypted.timestamp;
-      
-      if (timestamp && Date.now() - timestamp > 30000) {
-        return res.status(400).json({ error: 'Request expired' });
-      }
     } else if (req.body?.path) {
-      const apiKey = req.headers['x-api-key'];
-      if (!apiKey || apiKey !== process.env.API_KEY) return res.status(401).json({ error: 'Unauthorized' });
       path = req.body.path;
       method = req.body.method;
       data = req.body.data;
@@ -263,7 +256,7 @@ export default async function handler(req, res) {
           }
         } 
       }
-      return res.status(200).json(encryptResponse(result)); 
+      return res.status(200).json(result); 
     }
 
     if (method === 'GET') { 
@@ -278,7 +271,7 @@ export default async function handler(req, res) {
           }
         } 
       }
-      return res.status(200).json(encryptResponse(result)); 
+      return res.status(200).json(result); 
     }
 
     if (method === 'POST') { 
