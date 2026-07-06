@@ -250,13 +250,12 @@ async function login() {
             localStorage.removeItem(getBlockKey(username));
             await callRevanstore('login_success', 'POST', {});
             var user = result.data;
+            if (!user) { hideLoading(); showAlert('Error: Data user kosong', 'error'); return; }
             var expiryCheck = checkAccountExpiry(user);
             if (expiryCheck.expired) { hideLoading(); showExpiredBanner(); return; }
             currentUser = { id: user.id, username: user.username, password: password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' };
-            var ls = document.getElementById('loginScreen');
-            var ma = document.getElementById('mainApp');
-            if (ls) ls.style.display = 'none';
-            if (ma) ma.style.display = 'block';
+            document.getElementById('loginScreen').style.cssText = 'display:none!important';
+            document.getElementById('mainApp').style.cssText = 'display:block!important';
             hideLoading(); showHome(); showAlert('Login berhasil!', 'success'); updateProfileInfo();
             localStorage.setItem('bussid_session', JSON.stringify({ username: username, password: password, user_id: user.id, timestamp: Date.now() }));
         } else {
@@ -286,7 +285,7 @@ function logout() {
     currentUser = null; currentAccount = null; currentAuthToken = null; lastDeviceId = null;
     var ma = document.getElementById('mainApp'); if (ma) ma.style.display = 'none';
     var eb = document.getElementById('expiredBanner'); if (eb) eb.style.display = 'none';
-    var ls = document.getElementById('loginScreen'); if (ls) ls.style.display = 'block';
+    var ls = document.getElementById('loginScreen'); if (ls) ls.style.cssText = 'display:block!important;position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100vh!important;display:flex!important;align-items:center!important;justify-content:center!important;';
     var un = document.getElementById('username'); if (un) un.value = '';
     var pw = document.getElementById('password'); if (pw) pw.value = '';
     localStorage.removeItem('bussid_session'); 
@@ -447,8 +446,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return; }
     
-    var ls = document.getElementById('loginScreen'); if (ls) ls.style.display = 'block';
+    var ls = document.getElementById('loginScreen'); if (ls) ls.style.cssText = 'display:block!important;position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100vh!important;display:flex!important;align-items:center!important;justify-content:center!important;';
     
     var saved = localStorage.getItem('bussid_session');
-    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; var ls2 = document.getElementById('loginScreen'); if (ls2) ls2.style.display = 'none'; var ma = document.getElementById('mainApp'); if (ma) ma.style.display = 'block'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
+    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; var ls2 = document.getElementById('loginScreen'); if (ls2) ls2.style.cssText = 'display:none!important'; var ma = document.getElementById('mainApp'); if (ma) ma.style.cssText = 'display:block!important'; showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
 });
