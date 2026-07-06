@@ -230,7 +230,7 @@ function openWhatsApp() {
 }
 
 function openWhatsAppPassword() { 
-    var msg = encodeURIComponent("Assalamualaikum admin, saya ingin mengubah password akun BUSSID Top Up saya. Username: " + (currentUser ? currentUser.username : '')); 
+    var msg = encodeURIComponent("Assalamualaikum admin, saya ingin mengubah password akun saya. Username: " + (currentUser ? currentUser.username : '')); 
     window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + msg, '_blank'); 
 }
 
