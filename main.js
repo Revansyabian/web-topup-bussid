@@ -285,32 +285,93 @@ async function login() {
     if (blocked) { showBlockedScreen(); return; }
     var username = sanitize(document.getElementById('username').value.trim());
     var password = document.getElementById('password').value.trim();
-    if (!username || !password) { showAlert('Harap isi username dan password!', 'warning'); return; }
+    if (!username || !password) { 
+        Swal.fire({
+            icon: "warning",
+            title: "Oops...",
+            text: "Harap isi username dan password!",
+            confirmButtonColor: "#0ea5e9"
+        });
+        return; 
+    }
     var blockData = getBlockData(username);
-    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) { showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); return; }
+    if (blockData.blockedUntil && Date.now() < blockData.blockedUntil) { 
+        Swal.fire({
+            icon: "error",
+            title: "Akses Ditolak",
+            text: "🔒 Terlalu banyak percobaan! Akses ditolak.",
+            confirmButtonColor: "#ef4444"
+        });
+        return; 
+    }
     showLoading('Login...');
     try {
         var result = await callRevanstore('login', 'POST', { username: username, password: password });
-        if (result && result.blocked) { isBlocked = true; localStorage.setItem('bussid_blocked', 'true'); hideLoading(); showBlockedScreen(); return; }
+        if (result && result.blocked) { 
+            isBlocked = true; 
+            localStorage.setItem('bussid_blocked', 'true'); 
+            hideLoading(); 
+            showBlockedScreen(); 
+            return; 
+        }
         if (result && result.success) {
             localStorage.removeItem(getBlockKey(username));
             var user = result.data;
             var expiryCheck = checkAccountExpiry(user);
-            if (expiryCheck.expired) { hideLoading(); showExpiredBanner(); return; }
+            if (expiryCheck.expired) { 
+                hideLoading(); 
+                showExpiredBanner(); 
+                return; 
+            }
             currentUser = { id: user.id, username: user.username, password: password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' };
             await callRevanstore('login_success', 'POST', {});
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
-            hideLoading(); showHome(); showAlert('Login berhasil!', 'success'); updateProfileInfo();
+            hideLoading(); 
+            showHome(); 
+            updateProfileInfo();
+            Swal.fire({
+                icon: "success",
+                title: "Login Berhasil!",
+                text: "Selamat datang, " + currentUser.full_name + "!",
+                timer: 2000,
+                showConfirmButton: false
+            });
             localStorage.setItem('bussid_session', JSON.stringify({ username: username, password: password, user_id: user.id, timestamp: Date.now() }));
         } else {
             await callRevanstore('login_failed', 'POST', {});
-            blockData.attempts += 1; var a = blockData.attempts; var d = getBlockDuration(a);
+            blockData.attempts += 1; 
+            var a = blockData.attempts; 
+            var d = getBlockDuration(a);
             hideLoading();
-            if (d > 0) { blockData.blockedUntil = Date.now() + d * 60 * 1000; saveBlockData(username, blockData); showAlert('🔒 Terlalu banyak percobaan! Akses ditolak.', 'error'); }
-            else { saveBlockData(username, blockData); showAlert('Username atau password salah!', 'error'); }
+            if (d > 0) { 
+                blockData.blockedUntil = Date.now() + d * 60 * 1000; 
+                saveBlockData(username, blockData); 
+                Swal.fire({
+                    icon: "error",
+                    title: "Akses Ditolak",
+                    text: "🔒 Terlalu banyak percobaan! Silakan coba lagi nanti.",
+                    confirmButtonColor: "#ef4444"
+                });
+            } else { 
+                saveBlockData(username, blockData); 
+                Swal.fire({
+                    icon: "error",
+                    title: "Oops...",
+                    text: "User tidak ditemukan atau password salah!",
+                    confirmButtonColor: "#ef4444"
+                });
+            }
         }
-    } catch (error) { hideLoading(); showAlert('Gagal menghubungkan ke server!', 'error'); }
+    } catch (error) { 
+        hideLoading(); 
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "Gagal menghubungkan ke server!",
+            confirmButtonColor: "#ef4444"
+        });
+    }
 }
 
 function updateProfileInfo() {
