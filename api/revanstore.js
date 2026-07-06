@@ -154,7 +154,7 @@ export default async function handler(req, res) {
   else if (allowedOrigins.includes('*')) res.setHeader('Access-Control-Allow-Origin', '*');
   
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key, X-Fingerprint, X-Operator');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Fingerprint, X-Operator');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -184,10 +184,6 @@ export default async function handler(req, res) {
       path = decrypted.path;
       method = decrypted.method;
       data = decrypted.data;
-    } else if (req.body?.path) {
-      path = req.body.path;
-      method = req.body.method;
-      data = req.body.data;
     } else {
       return res.status(400).json({ error: 'Invalid request' });
     }
@@ -207,12 +203,12 @@ export default async function handler(req, res) {
       if (await isIPBlocked(ip) || (fp && await isFPBlocked(fp))) return res.status(200).json({ blocked: true });
       const snap = await db.ref('users').once('value');
       const users = snap.val();
-      if (!users) return res.status(200).json({ success: false });
+      if (!users) return res.status(200).json(encryptResponse({ success: false }));
       
       for (const key in users) {
         const decryptedUser = await decryptData(users[key]);
         if (decryptedUser && decryptedUser.username === data.username && decryptedUser.password === data.password) {
-          return res.status(200).json({ 
+          return res.status(200).json(encryptResponse({ 
             success: true, 
             data: { 
               id: key, 
@@ -221,10 +217,10 @@ export default async function handler(req, res) {
               full_name: decryptedUser.full_name || '', 
               expiry_date: decryptedUser.expiry_date || '' 
             } 
-          });
+          }));
         }
       }
-      return res.status(200).json({ success: false });
+      return res.status(200).json(encryptResponse({ success: false }));
     }
 
     if (path === 'login_failed' && method === 'POST') {
@@ -256,7 +252,7 @@ export default async function handler(req, res) {
           }
         } 
       }
-      return res.status(200).json(result); 
+      return res.status(200).json(encryptResponse(result)); 
     }
 
     if (method === 'GET') { 
@@ -271,7 +267,7 @@ export default async function handler(req, res) {
           }
         } 
       }
-      return res.status(200).json(result); 
+      return res.status(200).json(encryptResponse(result)); 
     }
 
     if (method === 'POST') { 
@@ -301,8 +297,8 @@ export default async function handler(req, res) {
       return res.status(200).json(encryptResponse({ success: true })); 
     }
 
-    return res.status(400).json({ error: 'Invalid method' });
+    return res.status(400).json(encryptResponse({ error: 'Invalid method' }));
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json(encryptResponse({ error: error.message }));
   }
 }
