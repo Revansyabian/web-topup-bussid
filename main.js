@@ -265,21 +265,20 @@ async function deleteAllHistory() {
             return; 
         }
         var count = 0;
-        var deletePromises = [];
         for (var key in transactions) { 
-            deletePromises.push(callRevanstore('transactions/' + key, 'DELETE'));
+            await callRevanstore('transactions/' + key, 'DELETE');
             count++; 
         }
-        await Promise.all(deletePromises);
         hideLoading(); 
         showAlert(count + ' riwayat dihapus!', 'success');
-        if (document.getElementById('historySection').style.display === 'block') { showHistory(); }
+        if (document.getElementById('historySection').style.display === 'block') { 
+            showHistory(); 
+        }
     } catch (error) { 
         hideLoading(); 
         showAlert('Gagal menghapus riwayat!', 'error'); 
     }
 }
-
 async function login() {
     var blocked = await checkIfBlocked();
     if (blocked) { showBlockedScreen(); return; }
