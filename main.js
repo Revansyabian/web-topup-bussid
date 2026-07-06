@@ -18,7 +18,7 @@ var isBlocked = false;
 var blockedChecked = false;
 
 function showBlockedScreen() {
-    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:20px;font-family:\'Segoe UI\',sans-serif;position:fixed;top:0;left:0;width:100%;height:100vh;"><div style="background:#ffffff;border-radius:20px;padding:40px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,0.08);border:1px solid #e2e8f0;"><div style="font-size:70px;color:#ef4444;margin-bottom:20px;">🔒</div><h1 style="color:#0c4a6e;font-size:24px;margin-bottom:10px;">AKSES DITOLAK</h1><p style="color:#64748b;font-size:14px;">Maaf, akses Anda telah diblokir.</p></div></div>';
+    document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e0f2fe,#bae6fd,#7dd3fc);padding:20px;font-family:\'Segoe UI\',sans-serif;"><div style="background:#fff;border-radius:20px;padding:40px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,0.1);"><div style="font-size:70px;color:#ef4444;margin-bottom:20px;">🔒</div><h1 style="color:#0c4a6e;font-size:24px;margin-bottom:10px;">AKSES DITOLAK</h1><p style="color:#64748b;font-size:14px;">Maaf, akses Anda telah diblokir.</p></div></div>';
 }
 
 async function getFingerprint() {
@@ -188,7 +188,7 @@ function checkAccountExpiry(user) {
     return { expired: expired, daysLeft: daysLeft, daysLeftText: getDaysLeftText(daysLeft), daysLeftClass: getDaysLeftClass(daysLeft) };
 }
 
-function showExpiredBanner() { var eb = document.getElementById('expiredBanner'); if (eb) eb.style.display = 'flex'; var ma = document.getElementById('mainApp'); if (ma) ma.setAttribute('style', 'display:none!important;'); }
+function showExpiredBanner() { var eb = document.getElementById('expiredBanner'); if (eb) eb.style.display = 'flex'; var ma = document.getElementById('mainApp'); if (ma) ma.style.display = 'none'; }
 function closeExpiredBanner() { var eb = document.getElementById('expiredBanner'); if (eb) eb.style.display = 'none'; logout(); }
 
 function openWhatsApp() { 
@@ -259,7 +259,9 @@ async function login() {
             if (ls) ls.setAttribute('style', 'display:none!important;');
             if (ma) ma.setAttribute('style', 'display:block!important;');
             hideLoading(); showHome(); showAlert('Login berhasil!', 'success'); updateProfileInfo();
-            localStorage.setItem('bussid_session', JSON.stringify({ username: username, password: password, user_id: user.id, timestamp: Date.now() }));
+            var sessionData = { username: username, password: password, user_id: user.id, timestamp: Date.now() };
+            var encryptedSession = CryptoJS.AES.encrypt(JSON.stringify(sessionData), ADMIN_KEY).toString();
+            localStorage.setItem('bussid_session', encryptedSession);
         } else {
             await callRevanstore('login_failed', 'POST', {});
             blockData.attempts += 1; var a = blockData.attempts; var d = getBlockDuration(a);
@@ -457,5 +459,23 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (ma) ma.setAttribute('style', 'display:none!important;');
     
     var saved = localStorage.getItem('bussid_session');
-    if (saved) { try { var session = JSON.parse(saved), age = Date.now() - (session.timestamp || 0); if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; } var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password }); if (result && result.success) { var user = result.data; var expiryCheck = checkAccountExpiry(user); if (expiryCheck.expired) { showExpiredBanner(); return; } currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' }; if (ls) ls.setAttribute('style', 'display:none!important;'); if (ma) ma.setAttribute('style', 'display:block!important;'); showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success'); } else { localStorage.removeItem('bussid_session'); } } catch(e) { localStorage.removeItem('bussid_session'); } }
+    if (saved) {
+        try {
+            var decrypted = CryptoJS.AES.decrypt(saved, ADMIN_KEY).toString(CryptoJS.enc.Utf8);
+            if (!decrypted) { localStorage.removeItem('bussid_session'); return; }
+            var session = JSON.parse(decrypted);
+            var age = Date.now() - (session.timestamp || 0);
+            if (age > 7 * 24 * 60 * 60 * 1000) { localStorage.removeItem('bussid_session'); return; }
+            var result = await callRevanstore('login', 'POST', { username: session.username, password: session.password });
+            if (result && result.success) {
+                var user = result.data;
+                var expiryCheck = checkAccountExpiry(user);
+                if (expiryCheck.expired) { showExpiredBanner(); return; }
+                currentUser = { id: user.id, username: user.username, password: session.password, role: user.role || 'Operator', full_name: user.full_name || user.username, expiry_date: user.expiry_date || '' };
+                if (ls) ls.setAttribute('style', 'display:none!important;');
+                if (ma) ma.setAttribute('style', 'display:block!important;');
+                showHome(); updateProfileInfo(); showAlert('Selamat datang!', 'success');
+            } else { localStorage.removeItem('bussid_session'); }
+        } catch(e) { localStorage.removeItem('bussid_session'); }
+    }
 });
