@@ -237,23 +237,21 @@ function openWhatsAppPassword() {
 function updatePasswordCounter(fieldId) { var input = document.getElementById(fieldId), counter = document.getElementById(fieldId + 'CharCount'); if (input && counter) counter.textContent = input.value.length + '/' + MAX_PASSWORD_LENGTH; }
 
 function showDeleteHistoryConfirm() {
-    var overlay = document.getElementById('confirmOverlay');
-    var msg = document.getElementById('confirmMessage');
-    var yesBtn = document.getElementById('confirmYes');
-    var noBtn = document.getElementById('confirmNo');
-    var title = document.getElementById('confirmTitle');
-    if (overlay && msg && yesBtn && noBtn) {
-        if (title) title.innerHTML = '<i class="fas fa-trash"></i> HAPUS SEMUA RIWAYAT';
-        msg.textContent = 'Yakin hapus semua riwayat?';
-        overlay.style.display = 'flex';
-        yesBtn.textContent = 'HAPUS SEMUA'; yesBtn.className = 'confirm-btn confirm-yes';
-        yesBtn.onclick = function() { overlay.style.display = 'none'; deleteAllHistory(); };
-        noBtn.onclick = function() { overlay.style.display = 'none'; };
-        overlay.onclick = function(e) { if (e.target === overlay) overlay.style.display = 'none'; };
-    }
+    Swal.fire({
+        title: '<i class="fas fa-trash"></i> HAPUS SEMUA RIWAYAT',
+        text: "Yakin hapus semua riwayat?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: "#64748b",
+        confirmButtonText: "HAPUS SEMUA",
+        cancelButtonText: "BATAL"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            deleteAllHistory();
+        }
+    });
 }
-
-function closeDeleteHistoryModal() { var overlay = document.getElementById('confirmOverlay'); if (overlay) overlay.style.display = 'none'; }
 
 async function deleteAllHistory() {
     showLoading('Menghapus...');
@@ -261,22 +259,54 @@ async function deleteAllHistory() {
         var transactions = await callRevanstore('transactions', 'GET');
         if (!transactions || typeof transactions !== 'object' || Object.keys(transactions).length === 0) { 
             hideLoading(); 
-            showAlert('Tidak ada riwayat!', 'warning'); 
+            Swal.fire({
+                icon: "warning",
+                title: "Oops...",
+                text: "Tidak ada riwayat!",
+                confirmButtonColor: "#0ea5e9"
+            });
             return; 
         }
+        var keys = Object.keys(transactions);
         var count = 0;
-        for (var key in transactions) { 
-            await callRevanstore('transactions/' + key, 'DELETE');
-            count++; 
+        var failed = 0;
+        for (var i = 0; i < keys.length; i++) { 
+            try {
+                await callRevanstore('transactions/' + keys[i], 'DELETE');
+                count++;
+            } catch(e) {
+                failed++;
+            }
+            await new Promise(function(r) { setTimeout(r, 1000); });
         }
-        hideLoading(); 
-        showAlert(count + ' riwayat dihapus!', 'success');
+        hideLoading();
+        if (failed > 0) {
+            Swal.fire({
+                icon: "warning",
+                title: "Selesai",
+                text: count + " riwayat dihapus, " + failed + " gagal.",
+                confirmButtonColor: "#0ea5e9"
+            });
+        } else {
+            Swal.fire({
+                icon: "success",
+                title: "Berhasil!",
+                text: count + " riwayat berhasil dihapus!",
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
         if (document.getElementById('historySection').style.display === 'block') { 
             showHistory(); 
         }
     } catch (error) { 
         hideLoading(); 
-        showAlert('Gagal menghapus riwayat!', 'error'); 
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "Gagal menghapus riwayat!",
+            confirmButtonColor: "#ef4444"
+        });
     }
 }
 
@@ -394,7 +424,9 @@ function logout() {
     ls.style.alignItems = 'center';
     ls.style.justifyContent = 'center';
     document.getElementById('username').value = ''; document.getElementById('password').value = '';
-    localStorage.removeItem('bussid_session'); showAlert('Logout!', 'success'); window.scrollTo(0, 0);
+    localStorage.removeItem('bussid_session'); 
+    showAlert('Logout!', 'success'); 
+    window.scrollTo(0, 0);
 }
 
 async function loginWithDeviceId(deviceId) {
